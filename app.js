@@ -19,7 +19,11 @@ const app = {
   editIngredientsList: [],
   galleryInterval: null,
 
-  init: async function() {
+init: async function() {
+    if (window.location.hash && window.location.hash.includes('access_token')) {
+       window.history.replaceState(null, null, window.location.pathname);
+    }
+
     const { data: { session } } = await client.auth.getSession();
     this.updateUserUI(session?.user || null);
 
