@@ -2,6 +2,7 @@ const SUPABASE_URL = 'https://gjgfxiiwrliczxprzjsn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdqZ2Z4aWl3cmxpY3p4cHJ6anNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3ODQwMDQsImV4cCI6MjA5NTM2MDAwNH0.klalMuCkIdGqfEqXqtqrwFPicxzZUWu5mF1ttmXSFwk';
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 const app = {
   currentUser: null,
   recipes: [],
@@ -16,6 +17,7 @@ const app = {
   currentRecipeData: null, 
   
   editIngredientsList: [],
+  galleryInterval: null,
 
   init: async function() {
     const { data: { session } } = await client.auth.getSession();
@@ -26,14 +28,15 @@ const app = {
     });
 
     await this.fetchIngredientsRegistry();
-    
+    await this.fetchRecipes();
+
     const urlParams = new URLSearchParams(window.location.search);
     const sharedRecipeId = urlParams.get('recipe');
     
     if (sharedRecipeId) {
       this.openDetail(sharedRecipeId);
     } else {
-      this.showView('view-dashboard');
+      this.showView('view-home');
     }
   },
 
@@ -51,10 +54,6 @@ const app = {
       profileDiv.style.display = 'none';
       loginBtn.style.display = 'block';
     }
-    
-    if (document.getElementById('view-dashboard').classList.contains('active')) {
-      this.renderDashboard();
-    }
   },
 
   loginWithDiscord: async function() {
@@ -63,14 +62,20 @@ const app = {
 
   logout: async function() {
     await client.auth.signOut();
-    this.showView('view-dashboard');
+    this.showView('view-home');
   },
 
   showView: function(viewId) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
     
-    if (viewId === 'view-dashboard') this.loadDashboard();
+    document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+    if(viewId === 'view-home') document.getElementById('nav-home').classList.add('active');
+    if(viewId === 'view-dashboard') document.getElementById('nav-browse').classList.add('active');
+    if(viewId === 'view-ingredients') document.getElementById('nav-pantry').classList.add('active');
+
+    if (viewId === 'view-home') this.renderHome();
+    if (viewId === 'view-dashboard') this.renderDashboard();
     if (viewId === 'view-ingredients') this.loadIngredientsView();
   },
 
@@ -215,32 +220,95 @@ const app = {
       document.getElementById('ingCategory').value = '';
       document.getElementById('ingSubcategory').value = '';
       document.getElementById('ingNotes').value = '';
-      
       this.loadIngredientsView();
     }
   },
 
-  loadDashboard: async function() {
-    const grid = document.getElementById('recipeGrid');
-    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; font-weight: 800; color: #666;">Loading Vault Data...</div>';
-
-    //fetch recipe_ingredients to calculate cost per serving
+  fetchRecipes: async function() {
     const { data, error } = await client.from('recipes').select(`
       *,
-      recipe_ingredients (
-        qty,
-        ingredients ( cost_per_unit )
-      )
+      recipe_ingredients ( qty, ingredients ( cost_per_unit ) )
     `).order('name');
+    
+    if (!error) this.recipes = data;
+  },
 
-    if (error) {
-      console.error("Error loading recipes:", error);
-      grid.innerHTML = '<div style="grid-column: 1/-1; color: red;">Failed to load recipes.</div>';
-      return;
+  createRecipeCardHTML: function(recipe) {
+    const isOwner = this.currentUser && recipe.author_id === this.currentUser.id;
+    const ownerBadge = isOwner ? `<div style="position:absolute; top:10px; right:10px; background:var(--accent-cyan); color:white; font-size:10px; font-weight:900; padding:4px 8px; border-radius:4px;">YOURS</div>` : '';
+
+    const rawImg = (recipe.image_url || '').trim().toLowerCase();
+    const isValidImg = rawImg.length > 5 && rawImg.startsWith('http');
+    const bgImage = isValidImg ? recipe.image_url.trim() : 'https://placehold.co/600x400/eeeeee/999999?text=No+Image';
+    const totalTime = (recipe.prep_time || 0) + (recipe.cook_time || 0);
+    
+    let baseCost = 0;
+    if (recipe.recipe_ingredients) {
+      recipe.recipe_ingredients.forEach(mapping => {
+        if (mapping.ingredients) baseCost += (mapping.qty * parseFloat(mapping.ingredients.cost_per_unit || 0));
+      });
+    }
+    const costPerServing = (baseCost / (recipe.servings || 1)).toFixed(2);
+    const tagsDisplay = (recipe.category || 'Uncategorized').split(',').map(t => t.trim()).join(' • ');
+
+    return `
+      <div class="recipe-card" onclick="app.openDetail('${recipe.id}')">
+        <div class="card-img" style="position:relative; background-image: url('${bgImage}'); background-size: cover; background-position: center;">
+          ${ownerBadge}
+        </div>
+        <div class="card-content">
+          <h3 class="card-title" style="margin-bottom: 5px;">${recipe.name}</h3>
+          <div style="font-size: 0.75rem; color: var(--text-gray); font-weight: 600; margin-bottom: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${tagsDisplay}
+          </div>
+          <div class="card-meta">
+            <span>🕒 ${totalTime} MIN</span>
+            <span style="color: var(--text-dark); font-weight: 900;">₱${costPerServing}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  renderHome: function() {
+    if (!this.recipes || this.recipes.length === 0) return;
+
+    const shuffled = [...this.recipes].sort(() => 0.5 - Math.random());
+    const galleryRecipes = shuffled.slice(0, 5);
+    const featuredRecipes = shuffled.slice(5, 8);
+
+    // carousel
+    const gallery = document.getElementById('homeGallery');
+    if (gallery) {
+      gallery.innerHTML = galleryRecipes.map(r => {
+        const rawImg = (r.image_url || '').trim().toLowerCase();
+        const isValidImg = rawImg.length > 5 && rawImg.startsWith('http');
+        const bgImage = isValidImg ? r.image_url.trim() : 'https://placehold.co/600x400/eeeeee/999999?text=No+Image';
+        
+        return `
+          <div class="gallery-card" style="background-image: url('${bgImage}')" onclick="app.openDetail('${r.id}')">
+            <div class="gallery-card-overlay">
+              <h3 style="margin:0; font-size: 1.3rem; text-transform: uppercase;">${r.name}</h3>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      if (this.galleryInterval) clearInterval(this.galleryInterval);
+      this.galleryInterval = setInterval(() => {
+        if (gallery) {
+          gallery.scrollBy({ left: 370, behavior: 'smooth' });
+          if (gallery.scrollLeft + gallery.clientWidth >= gallery.scrollWidth - 10) {
+            gallery.scrollTo({ left: 0, behavior: 'smooth' });
+          }
+        }
+      }, 3500);
     }
 
-    this.recipes = data;
-    this.renderDashboard();
+    const featured = document.getElementById('homeFeatured');
+    if (featured) {
+      featured.innerHTML = featuredRecipes.map(r => this.createRecipeCardHTML(r)).join('');
+    }
   },
 
   renderDashboard: function() {
@@ -258,7 +326,6 @@ const app = {
     });
     
     const uniqueCategories = Array.from(allTags).sort();
-    
     const catDl = document.getElementById('categoryDatalist');
     if (catDl) catDl.innerHTML = uniqueCategories.map(c => `<option value="${c}">`).join('');
     
@@ -289,52 +356,12 @@ const app = {
       return;
     }
 
-    filtered.forEach(recipe => {
-      const card = document.createElement('div');
-      card.className = 'recipe-card';
-      card.onclick = () => this.openDetail(recipe.id);
-      
-      const isOwner = this.currentUser && recipe.author_id === this.currentUser.id;
-      const ownerBadge = isOwner ? `<div style="position:absolute; top:10px; right:10px; background:#00aeb7; color:white; font-size:10px; font-weight:900; padding:4px 8px; border-radius:4px;">YOURS</div>` : '';
-
-      const rawImg = (recipe.image_url || '').trim().toLowerCase();
-      const isValidImg = rawImg.length > 5 && rawImg.startsWith('http');
-      const bgImage = isValidImg ? recipe.image_url.trim() : 'https://placehold.co/600x400/eeeeee/999999?text=No+Image';
-      const totalTime = (recipe.prep_time || 0) + (recipe.cook_time || 0);
-      
-      // calculate Cost per Serving for Dashboard
-      let baseCost = 0;
-      if (recipe.recipe_ingredients) {
-        recipe.recipe_ingredients.forEach(mapping => {
-          if (mapping.ingredients) {
-            baseCost += (mapping.qty * parseFloat(mapping.ingredients.cost_per_unit || 0));
-          }
-        });
-      }
-      const costPerServing = (baseCost / (recipe.servings || 1)).toFixed(2);
-      const tagsDisplay = (recipe.category || 'Uncategorized').split(',').map(t => t.trim()).join(' • ');
-
-      card.innerHTML = `
-        <div class="card-img" style="position:relative; background-image: url('${bgImage}'); background-size: cover; background-position: center;">
-          ${ownerBadge}
-        </div>
-        <div class="card-content">
-          <h3 class="card-title" style="margin-bottom: 5px;">${recipe.name}</h3>
-          <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 500; margin-bottom: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${tagsDisplay}
-          </div>
-          <div class="card-meta">
-            <span>🕒 ${totalTime} MIN</span>
-            <span style="color: var(--text-dark); font-weight: 900;">₱${costPerServing}</span>
-          </div>
-        </div>
-      `;
-      grid.appendChild(card);
-    });
+    grid.innerHTML = filtered.map(r => this.createRecipeCardHTML(r)).join('');
   },
 
-formatProcedure: function(text) {
+  formatProcedure: function(text) {
     if (!text) return "No instructions provided.";
+    
     let html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                    .replace(/\*(.*?)\*/g, '<em>$1</em>');
     
@@ -343,7 +370,7 @@ formatProcedure: function(text) {
     
     lines.forEach(line => {
       const trimmed = line.trim();
-      if (!trimmed) return;
+      if (!trimmed) return; 
 
       const h3Match = trimmed.match(/^###\s+(.*)/);
       const h2Match = trimmed.match(/^##\s+(.*)/);
@@ -403,6 +430,7 @@ formatProcedure: function(text) {
     const rawImg = (recipe.image_url || '').trim().toLowerCase();
     const bgImage = (rawImg.length > 5 && rawImg.startsWith('http')) ? recipe.image_url.trim() : 'https://placehold.co/1200x400/eeeeee/999999?text=No+Image';
     document.getElementById('detailImageBanner').style.backgroundImage = `url('${bgImage}')`;
+
     document.getElementById('detailTitle').textContent = recipe.name;
     document.getElementById('detailCategory').textContent = recipe.category || "UNCLASSIFIED";
     document.getElementById('detailPrep').textContent = recipe.prep_time || 0;
@@ -410,8 +438,10 @@ formatProcedure: function(text) {
     document.getElementById('detailTime').textContent = (recipe.prep_time || 0) + (recipe.cook_time || 0);
     document.getElementById('detailProcedure').innerHTML = this.formatProcedure(recipe.procedure);
     
+    // Author Setup
     document.getElementById('detailAuthorName').textContent = recipe.author_name || 'Anonymous Chef';
     document.getElementById('detailAuthorAvatar').src = recipe.author_avatar || 'https://via.placeholder.com/35';
+
     document.getElementById('detailServings').value = recipe.servings || 1;
     this.renderDetailScaling();
 
@@ -482,6 +512,7 @@ formatProcedure: function(text) {
         }
         
         const match = trimmed.match(/^([\d.]+)\s*([a-zA-Z]+)?\s+(.*)$/);
+        
         if (match) {
           const originalQty = parseFloat(match[1]);
           const scaledQty = +(originalQty * ratio).toFixed(2);
@@ -491,9 +522,7 @@ formatProcedure: function(text) {
           let unitCost = 0;
           if (recipe.recipe_ingredients) {
             const mapItem = recipe.recipe_ingredients.find(m => m.ingredients.name.toLowerCase() === name.toLowerCase());
-            if (mapItem) {
-              unitCost = parseFloat(mapItem.ingredients.cost_per_unit || 0);
-            }
+            if (mapItem) unitCost = parseFloat(mapItem.ingredients.cost_per_unit || 0);
           }
           const lineCost = (scaledQty * unitCost).toFixed(2);
           
@@ -505,7 +534,6 @@ formatProcedure: function(text) {
                     <span style="font-weight: 800; color: var(--text-gray); font-size: 0.9rem; min-width: 70px; text-align: right;">₱${lineCost}</span>
                   </li>`;
         }
-        
         return `<li style="padding: 10px 0;">${trimmed}</li>`;
       }).join('');
     }
@@ -572,7 +600,6 @@ formatProcedure: function(text) {
     }
   },
 
-  // recipe editor
   openEditor: function(recipeObj = null) {
     if (!this.currentUser) return alert("You must be logged in to create a recipe.");
 
@@ -738,18 +765,14 @@ formatProcedure: function(text) {
         finalRecipeId = data.id;
       }
 
-
       const mappingData = [];
       this.editIngredientsList.forEach(item => {
         if (item.type === 'ingredient') {
-          // Use .trim() on both sides to prevent spacing errors from breaking the link!
           const foundIngr = this.ingredientsRegistry.find(ing => 
             ing.name.trim().toLowerCase() === item.name.trim().toLowerCase()
           );
           if (foundIngr) {
             mappingData.push({ recipe_id: finalRecipeId, ingredient_id: foundIngr.id, qty: item.qty });
-          } else {
-             console.warn("Could not link ingredient to database:", item.name); // Helps debugging
           }
         }
       });
@@ -757,6 +780,9 @@ formatProcedure: function(text) {
       if (mappingData.length > 0) {
         await client.from('recipe_ingredients').insert(mappingData);
       }
+
+      // Re-fetch all recipes to ensure Dashboard and Home get the new data
+      await this.fetchRecipes();
 
       saveBtn.textContent = "SAVE RECIPE";
       saveBtn.disabled = false;
@@ -773,7 +799,10 @@ formatProcedure: function(text) {
   deleteRecipe: async function(id) {
     if (confirm("Are you sure you want to delete this recipe? This cannot be undone.")) {
       const { error } = await client.from('recipes').delete().eq('id', id);
-      if (!error) this.showView('view-dashboard');
+      if (!error) {
+        await this.fetchRecipes();
+        this.showView('view-home');
+      }
     }
   }
 };

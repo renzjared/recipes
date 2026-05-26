@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Renz-Bot | Recipes</title>
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800;900&display=swap" rel="stylesheet">
@@ -10,10 +10,16 @@
 <body>
 
   <header class="top-nav">
-    <div style="display: flex; gap: 30px; align-items: center;">
-      <div class="logo" onclick="app.showView('view-dashboard')">RECIPES.</div>
-      <button class="btn-secondary" onclick="app.showView('view-ingredients')">PANTRY</button>
+    <div style="display: flex; gap: 30px; align-items: center; flex-wrap: wrap;">
+      <div class="logo" onclick="app.showView('view-home')">RECIPES.</div>
+      
+      <nav class="nav-links">
+        <a id="nav-home" class="active" onclick="app.showView('view-home')">HOME</a>
+        <a id="nav-browse" onclick="app.showView('view-dashboard')">BROWSE</a>
+        <a id="nav-pantry" onclick="app.showView('view-ingredients')">PANTRY</a>
+      </nav>
     </div>
+
     <div class="header-actions" style="display: flex; gap: 15px; align-items: center;">
       <div id="userProfile" style="display: none; align-items: center; gap: 10px; font-weight: 800; font-size: 0.8rem;">
         <img id="userAvatar" src="" style="width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--text-dark);">
@@ -28,7 +34,28 @@
     </div>
   </header>
 
-  <main id="view-dashboard" class="view active">
+  <main id="view-home" class="view active" style="padding: 0; max-width: 100%;">
+    <section class="hero-section">
+      <div class="hero-content">
+        <h1>hi</h1>
+        <p>may pagkain dito.</p>
+        <button class="btn-primary" style="background: white; color: var(--pop-orange); font-size: 1.1rem; padding: 15px 30px;" onclick="app.showView('view-dashboard')">MAGPATULOY</button>
+      </div>
+      
+      <div class="gallery-wrapper">
+        <div class="gallery-track" id="homeGallery">
+          </div>
+      </div>
+    </section>
+
+    <section style="padding: 60px 40px; max-width: 1200px; margin: 0 auto;">
+      <h2 style="color: var(--pop-orange); font-size: 2rem; margin-bottom: 30px; text-align: center; border-bottom: 3px solid var(--border-color); padding-bottom: 10px;">FEATURED RECIPES</h2>
+      <div class="recipe-grid" id="homeFeatured">
+        </div>
+    </section>
+  </main>
+
+  <main id="view-dashboard" class="view">
     <div class="toolbar">
       <input type="text" id="searchInput" placeholder="Search menu...">
       <div class="filters" id="categoryNav">
@@ -45,7 +72,7 @@
       <div style="display: flex; gap: 10px;">
         <button class="btn-secondary" onclick="app.shareRecipe()" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">🔗 SHARE</button>
         <button class="btn-secondary" onclick="window.print()" style="border-color: var(--text-dark);">🖨️ PRINT PDF</button>
-        <button class="btn-primary" id="detailEditBtn">EDIT RECIPE</button>
+        <button class="btn-primary" id="detailEditBtn">EDIT ITEM</button>
       </div>
     </div>
     
@@ -204,14 +231,14 @@
 
       <div class="form-group">
         <label>PROCEDURE</label>
-        <textarea id="editProcedure" rows="8" placeholder="1. Marinate chicken..."></textarea>
+        <textarea id="editProcedure" rows="8" placeholder="Use Markdown! \n\n## Section Title\n1. First step... \n2. Second step..."></textarea>
       </div>
     </div>
   </main>
 
   <main id="view-ingredients" class="view">
     <div class="page-header">
-      <h1 class="page-title">PANTRY INVENTORY</h1>
+      <h1 class="page-title">INGREDIENT LIST</h1>
     </div>
 
     <div class="editor-form" style="margin-bottom: 40px; border-color: var(--accent-cyan);">
@@ -262,32 +289,36 @@
           </div>
         </div>
 
-        <button class="btn-primary" style="background-color: var(--accent-cyan);" onclick="app.saveIngredient()">SAVE TO PANTRY</button>
+        <button class="btn-primary" style="background-color: var(--accent-cyan);" onclick="app.saveIngredient()">ADD INGREDIENT</button>
     </div>
 
-    <div style="background: white; border: 2px solid var(--border-color); border-radius: 8px; padding: 20px;">
-      <table style="width: 100%; text-align: left; border-collapse: collapse;">
-        <thead>
-          <tr style="border-bottom: 2px solid var(--text-dark); color: var(--text-gray); font-size: 0.8rem;">
-            <th style="padding: 10px; width: 50px;">CAT</th>
-            <th style="padding: 10px; cursor: pointer; user-select: none;" onclick="app.sortTable('name')">
-              NAME <span id="sortIcon-name"></span>
-            </th>
-            <th style="padding: 10px; cursor: pointer; user-select: none;" onclick="app.sortTable('category')">
-              CATEGORY <span id="sortIcon-category"></span>
-            </th>
-            <th style="padding: 10px;">UNIT</th>
-            <th style="padding: 10px; cursor: pointer; user-select: none;" onclick="app.sortTable('cost_per_unit')">
-              UNIT COST <span id="sortIcon-cost_per_unit"></span>
-            </th>
-            <th style="padding: 10px;">MACROS PER UNIT</th>
-          </tr>
-        </thead>
-        <tbody id="ingredientsTableBody">
-          </tbody>
-      </table>
+<div style="background: white; border: 2px solid var(--border-color); border-radius: 8px; padding: 20px;">
+      
+      <div style="width: 100%; overflow-x: auto;">
+        
+        <table style="width: 100%; text-align: left; border-collapse: collapse; white-space: nowrap;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--text-dark); color: var(--text-gray); font-size: 0.8rem;">
+              <th style="padding: 10px; width: 50px;">CAT</th>
+              <th style="padding: 10px; cursor: pointer; user-select: none;" onclick="app.sortTable('name')">
+                NAME <span id="sortIcon-name"></span>
+              </th>
+              <th style="padding: 10px; cursor: pointer; user-select: none;" onclick="app.sortTable('category')">
+                CATEGORY <span id="sortIcon-category"></span>
+              </th>
+              <th style="padding: 10px;">UNIT</th>
+              <th style="padding: 10px; cursor: pointer; user-select: none;" onclick="app.sortTable('cost_per_unit')">
+                UNIT COST <span id="sortIcon-cost_per_unit"></span>
+              </th>
+              <th style="padding: 10px;">MACROS PER UNIT</th>
+            </tr>
+          </thead>
+          <tbody id="ingredientsTableBody">
+            </tbody>
+        </table>
+        
+      </div>
     </div>
-  </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
