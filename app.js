@@ -61,7 +61,13 @@ init: async function() {
   },
 
   loginWithDiscord: async function() {
-    await client.auth.signInWithOAuth({ provider: 'discord' });
+    const { error } = await client.auth.signInWithOAuth({
+        provider: 'discord',
+        options: {
+            redirectTo: 'https://renzjared.github.io/recipes/'
+        }
+    });
+    if (error) alert(error.message);
   },
 
   logout: async function() {
