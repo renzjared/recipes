@@ -230,7 +230,11 @@
       </div>
 
       <div class="form-group">
-        <label>PROCEDURE</label>
+        <label style="display: flex; justify-content: space-between;">
+          <span>PROCEDURE</span>
+          <span style="color: var(--accent-cyan); cursor: pointer; font-size: 0.85rem;" onclick="app.togglePreview()">👁️ Toggle Live Preview</span>
+        </label>
+        
         <div class="markdown-toolbar">
           <button type="button" onclick="app.insertMarkdown('**', '**')" title="Bold (Ctrl+B)"><b>B</b></button>
           <button type="button" onclick="app.insertMarkdown('*', '*')" title="Italic (Ctrl+I)"><i>I</i></button>
@@ -241,8 +245,12 @@
           <button type="button" onclick="app.insertMarkdown('[', '](url)')" title="Link">🔗</button>
           <button type="button" onclick="app.insertMarkdown('-# ', '')" title="Subtext">-#</button>
         </div>
-        <textarea id="editProcedure" rows="8" placeholder="Use the toolbar or Markdown! \n\n## Section Title\n1. First step..."></textarea>
+        
+        <textarea id="editProcedure" rows="8" oninput="app.updatePreview()" placeholder="Use the toolbar or Markdown! \n\n## Section Title\n1. First step..."></textarea>
+        
+        <div id="procedurePreview" style="display: none; padding: 15px; border: 2px dashed var(--accent-cyan); border-radius: 4px; background: var(--bg-white); margin-top: 10px;"></div>
       </div>
+
     </div>
   </main>
 

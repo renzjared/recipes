@@ -35,15 +35,16 @@ init: async function() {
     const procedureArea = document.getElementById('editProcedure');
     if (procedureArea) {
       procedureArea.addEventListener('keydown', (e) => {
-        // Check if Ctrl (Windows) or Cmd (Mac) is pressed
         if (e.ctrlKey || e.metaKey) {
           let handled = false;
-          if (e.key === 'b' || e.key === 'B') { this.insertMarkdown('**', '**'); handled = true; }
-          if (e.key === 'i' || e.key === 'I') { this.insertMarkdown('*', '*'); handled = true; }
-          if (e.key === 'u' || e.key === 'U') { this.insertMarkdown('__', '__'); handled = true; }
+
+          if (e.code === 'KeyB') { this.insertMarkdown('**', '**'); handled = true; }
+          if (e.code === 'KeyI') { this.insertMarkdown('*', '*'); handled = true; }
+          if (e.code === 'KeyU') { this.insertMarkdown('__', '__'); handled = true; }
           
           if (handled) {
             e.preventDefault(); // stop the browser from opening Bookmarks, etc.
+            this.updatePreview();
           }
         }
       });
@@ -440,7 +441,25 @@ init: async function() {
     return formattedHTML;
   },
 
-  insertMarkdown: function(prefix, suffix) {
+  togglePreview: function() {
+    const preview = document.getElementById('procedurePreview');
+    if (preview.style.display === 'none') {
+      preview.style.display = 'block';
+      this.updatePreview();
+    } else {
+      preview.style.display = 'none';
+    }
+  },
+
+  updatePreview: function() {
+    const preview = document.getElementById('procedurePreview');
+    const textarea = document.getElementById('editProcedure');
+    if (preview.style.display === 'block') {
+      preview.innerHTML = this.formatProcedure(textarea.value);
+    }
+  },
+
+insertMarkdown: function(prefix, suffix) {
     const textarea = document.getElementById('editProcedure');
     if (!textarea) return;
 
@@ -448,68 +467,51 @@ init: async function() {
     const end = textarea.selectionEnd;
     const text = textarea.value;
     const selectedText = text.substring(start, end);
-    
-    const before = text.substring(0, start);
-    const after = text.substring(end);
-    
-    // Insert the markdown around the highlighted text
-    textarea.value = before + prefix + selectedText + suffix + after;
-    
-    // Put the user's cursor exactly back where it belongs
-    textarea.focus();
-    if (selectedText.length === 0 && suffix.length > 0) {
-      // If no text was selected, put cursor between the tags (e.g., **|**)
-      textarea.setSelectionRange(start + prefix.length, start + prefix.length);
-    } else {
-      // Re-highlight the text including the new tags
-      textarea.setSelectionRange(start, end + prefix.length + suffix.length);
+    const pLen = prefix.length;
+    const sLen = suffix.length;
+
+    let replaceStart = start;
+    let replaceEnd = end;
+    let newText = "";
+    let finalCursorStart = start;
+    let finalCursorEnd = end;
+
+    // tags are OUTSIDE the highlighted text
+    if (start >= pLen && text.substring(start - pLen, start) === prefix && text.substring(end, end + sLen) === suffix) {
+      replaceStart = start - pLen;
+      replaceEnd = end + sLen;
+      newText = selectedText; // Strip the tags
+      finalCursorStart = start - pLen;
+      finalCursorEnd = end - pLen;
     }
+    // tags are INSIDE the highlighted text 
+    else if (selectedText.startsWith(prefix) && selectedText.endsWith(suffix) && selectedText.length >= pLen + sLen) {
+      newText = selectedText.substring(pLen, selectedText.length - sLen); // Strip the tags
+      finalCursorStart = start;
+      finalCursorEnd = start + newText.length;
+    }
+
+    else {
+      newText = prefix + selectedText + suffix;
+      if (selectedText.length === 0 && suffix.length > 0) {
+        finalCursorStart = start + pLen;
+        finalCursorEnd = start + pLen;
+      } else {
+        finalCursorStart = start;
+        finalCursorEnd = start + newText.length;
+      }
+    }
+    textarea.focus();
+    textarea.setSelectionRange(replaceStart, replaceEnd);
+
+    if (!document.execCommand("insertText", false, newText)) {
+      // Fallback for older browsers
+      textarea.setRangeText(newText);
+    }
+
+    textarea.setSelectionRange(finalCursorStart, finalCursorEnd);
+    this.updatePreview();
   },
-
-  // formatProcedure: function(text) {
-  //   if (!text) return "No instructions provided.";
-    
-  //   let html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-  //                  .replace(/\*(.*?)\*/g, '<em>$1</em>');
-    
-  //   const lines = html.split('\n');
-  //   let formattedHTML = '';
-    
-  //   lines.forEach(line => {
-  //     const trimmed = line.trim();
-  //     if (!trimmed) return; 
-
-  //     const h3Match = trimmed.match(/^###\s+(.*)/);
-  //     const h2Match = trimmed.match(/^##\s+(.*)/);
-  //     const h1Match = trimmed.match(/^#\s+(.*)/);
-  //     const olMatch = trimmed.match(/^(\d+\.)\s+(.*)/); 
-  //     const ulMatch = trimmed.match(/^[-*]\s+(.*)/);    
-      
-  //     if (h1Match) {
-  //       formattedHTML += `<h1 style="color: var(--pop-orange); margin: 20px 0 8px 0; font-size: 2.2rem;">${h1Match[1]}</h1>`;
-  //     } else if (h2Match) {
-  //       formattedHTML += `<h2 style="color: var(--pop-orange); margin: 18px 0 8px 0; font-size: 1.5rem; border-bottom: 2px solid var(--border-color); padding-bottom: 4px;">${h2Match[1]}</h2>`;
-  //     } else if (h3Match) {
-  //       formattedHTML += `<h3 style="color: var(--pop-orange); margin: 12px 0 4px 0; font-size: 1.1rem;">${h3Match[1]}</h3>`;
-  //     } else if (olMatch) {
-  //       formattedHTML += `
-  //         <div style="display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start;">
-  //           <span style="font-weight: 900; color: var(--pop-orange); font-size: 1.05rem; line-height: 1.4;">${olMatch[1]}</span>
-  //           <span style="flex: 1; line-height: 1.4;">${olMatch[2]}</span>
-  //         </div>`;
-  //     } else if (ulMatch) {
-  //       formattedHTML += `
-  //         <div style="display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start;">
-  //           <span style="font-weight: 900; color: var(--pop-orange); font-size: 1.2rem; line-height: 1.1;">•</span>
-  //           <span style="flex: 1; line-height: 1.4;">${ulMatch[1]}</span>
-  //         </div>`;
-  //     } else {
-  //       formattedHTML += `<p style="margin-bottom: 8px; line-height: 1.5;">${trimmed}</p>`;
-  //     }
-  //   });
-    
-  //   return formattedHTML;
-  // },
 
   openDetail: async function(recipeId) {
     document.getElementById('detailTitle').textContent = "Loading...";
@@ -915,3 +917,4 @@ init: async function() {
 };
 
 window.onload = () => app.init();
+window.app = app;
