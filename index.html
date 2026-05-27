@@ -231,7 +231,17 @@
 
       <div class="form-group">
         <label>PROCEDURE</label>
-        <textarea id="editProcedure" rows="8" placeholder="Use Markdown! \n\n## Section Title\n1. First step... \n2. Second step..."></textarea>
+        <div class="markdown-toolbar">
+          <button type="button" onclick="app.insertMarkdown('**', '**')" title="Bold (Ctrl+B)"><b>B</b></button>
+          <button type="button" onclick="app.insertMarkdown('*', '*')" title="Italic (Ctrl+I)"><i>I</i></button>
+          <button type="button" onclick="app.insertMarkdown('__', '__')" title="Underline (Ctrl+U)"><u>U</u></button>
+          <button type="button" onclick="app.insertMarkdown('~~', '~~')" title="Strikethrough"><s>S</s></button>
+          <div class="toolbar-divider"></div>
+          <button type="button" onclick="app.insertMarkdown('`', '`')" title="Code"><code>&lt;/&gt;</code></button>
+          <button type="button" onclick="app.insertMarkdown('[', '](url)')" title="Link">🔗</button>
+          <button type="button" onclick="app.insertMarkdown('-# ', '')" title="Subtext">-#</button>
+        </div>
+        <textarea id="editProcedure" rows="8" placeholder="Use the toolbar or Markdown! \n\n## Section Title\n1. First step..."></textarea>
       </div>
     </div>
   </main>
