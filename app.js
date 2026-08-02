@@ -67,6 +67,7 @@ const app = {
 
   updateUserUI: function(user) {
     this.currentUser = user;
+    this.fetchShoppingList();
     const profileDiv = document.getElementById('userProfile');
     const loginBtn = document.getElementById('loginBtn');
 
@@ -110,7 +111,10 @@ const app = {
     if (viewId === 'view-home') this.renderHome();
     if (viewId === 'view-dashboard') this.renderDashboard();
     if (viewId === 'view-ingredients') this.loadIngredientsView();
-    if (viewId === 'view-shopping') this.renderShoppingList();
+    if (viewId === 'view-shopping') {
+      this.fetchShoppingList();
+      this.renderShoppingList();
+    }
   },
 
   fetchIngredientsRegistry: async function() {
@@ -677,10 +681,31 @@ const app = {
     modal.classList.remove('hidden');
   },
 
+// ----------------------------------------------------------------------
+  // UPGRADED: SHOPPING LIST FEATURE (Cloud Sync + Local Fallback)
   // ----------------------------------------------------------------------
-  // MODIFIED: Smart Shopping List Logic
-  // ----------------------------------------------------------------------
-  addRecipeToShoppingList: function() {
+
+  // Load shopping items when user state changes or on view render
+  fetchShoppingList: async function() {
+    if (this.currentUser) {
+      const { data, error } = await client
+        .from('shopping_list')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (!error && data) {
+        this.shoppingList = data;
+      }
+    } else {
+      this.shoppingList = JSON.parse(localStorage.getItem('renz_shopping_list')) || [];
+    }
+    
+    if (document.getElementById('view-shopping').classList.contains('active')) {
+      this.renderShoppingList();
+    }
+  },
+
+  addRecipeToShoppingList: async function() {
     if (!this.currentRecipeData) return;
     
     const recipe = this.currentRecipeData;
@@ -688,48 +713,35 @@ const app = {
     const targetServings = parseFloat(document.getElementById('detailServings').value) || 1;
     const ratio = targetServings / baseServings;
 
-    if (recipe.raw_ingredients) {
-      recipe.raw_ingredients.split('\n').forEach(line => {
-        const trimmed = line.trim();
-        if (!trimmed || (trimmed.startsWith('[') && trimmed.endsWith(']'))) return;
-        
-        const match = trimmed.match(/^([\d.]+)\s*([a-zA-Z]+)?\s+(.*)$/);
-        if (match) {
-          const qty = +(parseFloat(match[1]) * ratio).toFixed(2);
-          const unit = match[2] ? match[2].trim() : '';
-          const name = match[3].trim();
-          
-          let unitCost = 0;
-          if (recipe.recipe_ingredients) {
-            const mapItem = recipe.recipe_ingredients.find(m => m.ingredients.name.toLowerCase() === name.toLowerCase());
-            if (mapItem) unitCost = parseFloat(mapItem.ingredients.cost_per_unit || 0);
-          }
+    if (!recipe.raw_ingredients) return;
 
-          const existingIndex = this.shoppingList.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
-          
-          if (existingIndex !== -1) {
-            // Deduplicate: If it exists, add the quantity
-            this.shoppingList[existingIndex].qty = parseFloat((this.shoppingList[existingIndex].qty + qty).toFixed(2));
-          } else {
-            // Otherwise add new item
-            this.shoppingList.push({
-              id: Date.now() + Math.random(),
-              name: name,
-              qty: qty,
-              unit: unit,
-              cost_per_unit: unitCost,
-              actual_cost: 0,
-              checked: false
-            });
-          }
+    const lines = recipe.raw_ingredients.split('\n');
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || (trimmed.startsWith('[') && trimmed.endsWith(']'))) continue;
+      
+      const match = trimmed.match(/^([\d.]+)\s*([a-zA-Z]+)?\s+(.*)$/);
+      if (match) {
+        const qty = +(parseFloat(match[1]) * ratio).toFixed(2);
+        const unit = match[2] ? match[2].trim() : '';
+        const name = match[3].trim();
+        
+        let unitCost = 0;
+        if (recipe.recipe_ingredients) {
+          const mapItem = recipe.recipe_ingredients.find(m => m.ingredients.name.toLowerCase() === name.toLowerCase());
+          if (mapItem) unitCost = parseFloat(mapItem.ingredients.cost_per_unit || 0);
         }
-      });
-      this.saveShoppingList();
-      alert(`Added ingredients for ${targetServings} serving(s) to your Shopping List!`);
+
+        await this.upsertShoppingItem(name, qty, unit, unitCost);
+      }
     }
+
+    alert(`Added ingredients for ${targetServings} serving(s) to your Shopping List!`);
+    await this.fetchShoppingList();
   },
 
-  addManualShoppingItem: function() {
+  addManualShoppingItem: async function() {
     const nameInput = document.getElementById('manualShopName');
     const qtyInput = document.getElementById('manualShopQty');
     const unitInput = document.getElementById('manualShopUnit');
@@ -747,112 +759,115 @@ const app = {
       costPerUnit = parseFloat(found.cost_per_unit || 0);
     }
 
-    const existingIndex = this.shoppingList.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
-          
-    if (existingIndex !== -1) {
-      // Deduplicate manually added items
-      this.shoppingList[existingIndex].qty = parseFloat((this.shoppingList[existingIndex].qty + qty).toFixed(2));
-    } else {
-      this.shoppingList.push({
-        id: Date.now(),
-        name: name,
-        qty: qty,
-        unit: unit,
-        cost_per_unit: costPerUnit,
-        actual_cost: 0,
-        checked: false
-      });
-    }
+    await this.upsertShoppingItem(name, qty, unit, costPerUnit);
 
     nameInput.value = '';
     qtyInput.value = '1';
     unitInput.value = '';
-    this.saveShoppingList();
+    await this.fetchShoppingList();
   },
 
-  renderShoppingList: function() {
-    const container = document.getElementById('shoppingListContainer');
-    if (!container) return;
+  // Helper function to handle deduplication and database inserts vs localStorage
+  upsertShoppingItem: async function(name, qty, unit, costPerUnit) {
+    const existingIndex = this.shoppingList.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
 
-    if (this.shoppingList.length === 0) {
-      container.innerHTML = '<div style="text-align: center; color: var(--text-gray); font-weight: 700; margin-top: 30px;">Your shopping list is empty. Add items from a recipe or enter them manually above.</div>';
-      document.getElementById('shoppingEstTotal').textContent = '₱0.00';
-      document.getElementById('shoppingActTotal').textContent = '₱0.00';
-      return;
-    }
-
-    let estTotal = 0;
-    let actTotal = 0;
-
-    container.innerHTML = this.shoppingList.map((item, index) => {
-      const estLineCost = (item.qty * (item.cost_per_unit || 0)).toFixed(2);
-      estTotal += parseFloat(estLineCost);
-      actTotal += parseFloat(item.actual_cost || 0);
-
-      const checkedClass = item.checked ? 'bought' : '';
-      const checkboxStatus = item.checked ? 'checked' : '';
-
-      return `
-        <div class="shopping-row ${checkedClass}">
-          <input type="checkbox" ${checkboxStatus} onchange="app.updateShoppingItem(${index}, 'checked', this.checked)">
-          <div class="shopping-item-name">
-            <input type="text" value="${item.name}" list="ingredientDatalist" onchange="app.updateShoppingItem(${index}, 'name', this.value)" placeholder="Item Name">
-          </div>
-          <div class="shopping-item-qty">
-            <input type="number" value="${item.qty}" step="any" onchange="app.updateShoppingItem(${index}, 'qty', this.value)">
-          </div>
-          <div class="shopping-item-unit" style="display: flex; align-items: center; color: var(--text-gray); font-size: 0.95rem; font-weight: 600;">
-            ${item.unit}
-          </div>
-          <div class="shopping-item-est" style="display: flex; align-items: center;">₱${estLineCost}</div>
-          <div class="shopping-item-actual">
-            <input type="number" value="${item.actual_cost || ''}" placeholder="Actual Price" step="any" onchange="app.updateShoppingItem(${index}, 'actual_cost', this.value)">
-          </div>
-          <button class="btn-secondary" style="padding: 5px 10px; color: red; border-color: red; font-size: 0.7rem;" onclick="app.removeShoppingItem(${index})">X</button>
-        </div>
-      `;
-    }).join('');
-
-    document.getElementById('shoppingEstTotal').textContent = `₱${estTotal.toFixed(2)}`;
-    document.getElementById('shoppingActTotal').textContent = `₱${actTotal.toFixed(2)}`;
-  },
-
-  saveShoppingList: function() {
-    localStorage.setItem('renz_shopping_list', JSON.stringify(this.shoppingList));
-    if (document.getElementById('view-shopping').classList.contains('active')) {
-      this.renderShoppingList();
+    if (this.currentUser) {
+      if (existingIndex !== -1) {
+        const existingItem = this.shoppingList[existingIndex];
+        const updatedQty = parseFloat((existingItem.qty + qty).toFixed(2));
+        await client.from('shopping_list').update({ qty: updatedQty }).eq('id', existingItem.id);
+      } else {
+        await client.from('shopping_list').insert({
+          user_id: this.currentUser.id,
+          name: name,
+          qty: qty,
+          unit: unit,
+          cost_per_unit: costPerUnit,
+          actual_cost: 0,
+          checked: false
+        });
+      }
+    } else {
+      if (existingIndex !== -1) {
+        this.shoppingList[existingIndex].qty = parseFloat((this.shoppingList[existingIndex].qty + qty).toFixed(2));
+      } else {
+        this.shoppingList.push({
+          id: Date.now() + Math.random(),
+          name: name,
+          qty: qty,
+          unit: unit,
+          cost_per_unit: costPerUnit,
+          actual_cost: 0,
+          checked: false
+        });
+      }
+      localStorage.setItem('renz_shopping_list', JSON.stringify(this.shoppingList));
     }
   },
 
-  updateShoppingItem: function(index, field, value) {
+  updateShoppingItem: async function(index, field, value) {
     if (field === 'qty' || field === 'actual_cost') value = parseFloat(value) || 0;
     
+    const item = this.shoppingList[index];
+    item[field] = value;
+
     if (field === 'name') {
       const found = this.ingredientsRegistry.find(i => i.name.toLowerCase() === value.trim().toLowerCase());
       if (found) {
-        this.shoppingList[index].cost_per_unit = parseFloat(found.cost_per_unit || 0);
-        this.shoppingList[index].unit = found.unit;
+        item.cost_per_unit = parseFloat(found.cost_per_unit || 0);
+        item.unit = found.unit;
       }
     }
 
-    this.shoppingList[index][field] = value;
-    this.saveShoppingList();
+    if (this.currentUser && item.id) {
+      const updateData = {};
+      updateData[field] = value;
+      if (field === 'name' && item.unit) {
+        updateData.unit = item.unit;
+        updateData.cost_per_unit = item.cost_per_unit;
+      }
+      await client.from('shopping_list').update(updateData).eq('id', item.id);
+    } else {
+      localStorage.setItem('renz_shopping_list', JSON.stringify(this.shoppingList));
+    }
+
+    this.renderShoppingList();
   },
 
-  removeShoppingItem: function(index) {
+  removeShoppingItem: async function(index) {
+    const item = this.shoppingList[index];
+    if (this.currentUser && item.id) {
+      await client.from('shopping_list').delete().eq('id', item.id);
+    }
     this.shoppingList.splice(index, 1);
-    this.saveShoppingList();
+    if (!this.currentUser) {
+      localStorage.setItem('renz_shopping_list', JSON.stringify(this.shoppingList));
+    }
+    this.renderShoppingList();
   },
 
-  clearCheckedShoppingList: function() {
+  clearCheckedShoppingList: async function() {
+    if (this.currentUser) {
+      const checkedIds = this.shoppingList.filter(item => item.checked).map(item => item.id);
+      if (checkedIds.length > 0) {
+        await client.from('shopping_list').delete().in('id', checkedIds);
+      }
+    }
     this.shoppingList = this.shoppingList.filter(item => !item.checked);
-    this.saveShoppingList();
+    if (!this.currentUser) {
+      localStorage.setItem('renz_shopping_list', JSON.stringify(this.shoppingList));
+    }
+    this.renderShoppingList();
   },
 
-  clearAllShoppingList: function() {
-    if(confirm("Are you sure you want to clear your entire shopping list?")) {
+  clearAllShoppingList: async function() {
+    if (confirm("Are you sure you want to clear your entire shopping list?")) {
+      if (this.currentUser) {
+        await client.from('shopping_list').delete().eq('user_id', this.currentUser.id);
+      }
       this.shoppingList = [];
-      this.saveShoppingList();
+      localStorage.removeItem('renz_shopping_list');
+      this.renderShoppingList();
     }
   },
 
