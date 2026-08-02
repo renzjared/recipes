@@ -55,11 +55,12 @@ const app = {
     await this.fetchIngredientsRegistry();
     await this.fetchRecipes();
 
+    // UPGRADED: Check for short link (?r=) or legacy link (?recipe=)
     const urlParams = new URLSearchParams(window.location.search);
-    const sharedRecipeId = urlParams.get('recipe');
+    const sharedRecipe = urlParams.get('r') || urlParams.get('recipe');
     
-    if (sharedRecipeId) {
-      this.openDetail(sharedRecipeId);
+    if (sharedRecipe) {
+      this.loadSharedRecipe(sharedRecipe);
     } else {
       this.showView('view-home');
     }
@@ -114,6 +115,21 @@ const app = {
     if (viewId === 'view-shopping') {
       this.fetchShoppingList();
       this.renderShoppingList();
+    }
+  },
+
+  loadSharedRecipe: async function(code) {
+    document.getElementById('detailTitle').textContent = "Loading...";
+    this.showView('view-detail');
+    
+    // 1. Try to find the recipe using the short_code
+    const { data, error } = await client.from('recipes').select('id').eq('short_code', code).maybeSingle();
+    
+    if (data && data.id) {
+      this.openDetail(data.id);
+    } else {
+      // 2. Fallback: If no shortcode matches, assume it's a legacy UUID link
+      this.openDetail(code);
     }
   },
 
@@ -664,8 +680,9 @@ const app = {
     const bgImage = (rawImg.length > 5 && rawImg.startsWith('http')) ? recipe.image_url.trim() : 'https://placehold.co/600x600/eeeeee/999999?text=No+Image';
     document.getElementById('shareCardImage').src = bgImage;
 
-    const baseUrl = window.location.href.split('?')[0];
-    const shareUrl = `${baseUrl}?recipe=${this.currentOpenRecipeId}`;
+    // UPGRADED: Use short_code if available, otherwise fallback to the long ID
+    const code = recipe.short_code || recipe.id;
+    const shareUrl = `https://renzjared.github.io/recipes/?r=${code}`;
     
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(shareUrl)}`;
     document.getElementById('shareCardQR').src = qrUrl;
@@ -1084,6 +1101,9 @@ const app = {
         await client.from('recipes').update(recipeData).eq('id', idInput);
         await client.from('recipe_ingredients').delete().eq('recipe_id', idInput);
       } else {
+        // NEW: Generate a random 6-character short code for new recipes
+        recipeData.short_code = Math.random().toString(36).substring(2, 8);
+        
         const { data, error } = await client.from('recipes').insert(recipeData).select().single();
         if (error) throw error;
         finalRecipeId = data.id;
