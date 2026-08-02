@@ -7,6 +7,7 @@ const app = {
   currentUser: null,
   recipes: [],
   ingredientsRegistry: [], 
+  shoppingList: [], 
   currentCategory: 'All',
   currentSearch: '',
   
@@ -19,7 +20,7 @@ const app = {
   editIngredientsList: [],
   galleryInterval: null,
 
-init: async function() {
+  init: async function() {
     if (window.location.hash && window.location.hash.includes('access_token')) {
        window.history.replaceState(null, null, window.location.pathname);
     }
@@ -31,7 +32,8 @@ init: async function() {
       this.updateUserUI(session?.user || null);
     });
 
-    // keyboard shortcuts for formatting
+    this.shoppingList = JSON.parse(localStorage.getItem('renz_shopping_list')) || [];
+
     const procedureArea = document.getElementById('editProcedure');
     if (procedureArea) {
       procedureArea.addEventListener('keydown', (e) => {
@@ -43,7 +45,7 @@ init: async function() {
           if (e.code === 'KeyU') { this.insertMarkdown('__', '__'); handled = true; }
           
           if (handled) {
-            e.preventDefault(); // stop the browser from opening Bookmarks, etc.
+            e.preventDefault();
             this.updatePreview();
           }
         }
@@ -80,10 +82,11 @@ init: async function() {
   },
 
   loginWithDiscord: async function() {
+    const dynamicRedirectUrl = window.location.origin + window.location.pathname;
     const { error } = await client.auth.signInWithOAuth({
         provider: 'discord',
         options: {
-            redirectTo: 'https://renzjared.github.io/recipes/'
+            redirectTo: dynamicRedirectUrl
         }
     });
     if (error) alert(error.message);
@@ -102,10 +105,12 @@ init: async function() {
     if(viewId === 'view-home') document.getElementById('nav-home').classList.add('active');
     if(viewId === 'view-dashboard') document.getElementById('nav-browse').classList.add('active');
     if(viewId === 'view-ingredients') document.getElementById('nav-pantry').classList.add('active');
+    if(viewId === 'view-shopping') document.getElementById('nav-cart').classList.add('active');
 
     if (viewId === 'view-home') this.renderHome();
     if (viewId === 'view-dashboard') this.renderDashboard();
     if (viewId === 'view-ingredients') this.loadIngredientsView();
+    if (viewId === 'view-shopping') this.renderShoppingList();
   },
 
   fetchIngredientsRegistry: async function() {
@@ -191,16 +196,16 @@ init: async function() {
       tr.innerHTML = `
         <td style="padding: 15px; font-size: 1.5rem; text-align: center;" title="${ing.category || 'Uncategorized'}">${catIcon}</td>
         <td style="padding: 15px;">
-          <div style="font-weight: 800; color: var(--text-dark); font-size: 0.95rem;">${ing.name}</div>
+          <div style="font-weight: 700; color: var(--text-dark); font-size: 0.95rem;">${ing.name}</div>
           <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 2px;">${ing.notes || 'No notes'}</div>
         </td>
         <td style="padding: 15px;">
-          <div style="font-weight: 700; color: var(--text-gray); font-size: 0.85rem;">${(ing.category || '---').toUpperCase()}</div>
-          <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 600;">${(ing.subcategory || '').toUpperCase()}</div>
+          <div style="font-weight: 600; color: var(--text-gray); font-size: 0.85rem;">${(ing.category || '---')}</div>
+          <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 500;">${(ing.subcategory || '')}</div>
         </td>
-        <td style="padding: 15px; font-weight: 800; color: var(--accent-cyan);">${ing.unit}</td>
-        <td style="padding: 15px; font-weight: 900; color: var(--pop-orange);">₱${parseFloat(ing.cost_per_unit||0).toFixed(2)}</td>
-        <td style="padding: 15px; font-size: 0.8rem; font-weight: 700; color: #64748b; white-space: nowrap;">
+        <td style="padding: 15px; font-weight: 700; color: var(--accent-cyan);">${ing.unit}</td>
+        <td style="padding: 15px; font-weight: 700; color: var(--pop-orange);">₱${parseFloat(ing.cost_per_unit||0).toFixed(2)}</td>
+        <td style="padding: 15px; font-size: 0.8rem; font-weight: 600; color: #64748b; white-space: nowrap;">
           <span title="Calories" style="color: var(--hint-purple);">🔥 ${parseFloat(ing.calories_per_unit||0).toFixed(1)}</span> &nbsp;
           <span title="Carbohydrates" style="color: #d97706;">🌾 ${parseFloat(ing.carbs_per_unit||0).toFixed(1)}g</span> &nbsp;
           <span title="Protein" style="color: #dc2626;">🥩 ${parseFloat(ing.protein_per_unit||0).toFixed(1)}g</span> &nbsp;
@@ -264,7 +269,7 @@ init: async function() {
 
   createRecipeCardHTML: function(recipe) {
     const isOwner = this.currentUser && recipe.author_id === this.currentUser.id;
-    const ownerBadge = isOwner ? `<div style="position:absolute; top:10px; right:10px; background:var(--accent-cyan); color:white; font-size:10px; font-weight:900; padding:4px 8px; border-radius:4px;">YOURS</div>` : '';
+    const ownerBadge = isOwner ? `<div style="position:absolute; top:10px; right:10px; background:var(--accent-cyan); color:white; font-size:10px; font-weight:700; padding:4px 8px; border-radius:4px;">Yours</div>` : '';
 
     const rawImg = (recipe.image_url || '').trim().toLowerCase();
     const isValidImg = rawImg.length > 5 && rawImg.startsWith('http');
@@ -287,12 +292,12 @@ init: async function() {
         </div>
         <div class="card-content">
           <h3 class="card-title" style="margin-bottom: 5px;">${recipe.name}</h3>
-          <div style="font-size: 0.75rem; color: var(--text-gray); font-weight: 600; margin-bottom: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          <div style="font-size: 0.75rem; color: var(--text-gray); font-weight: 500; margin-bottom: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             ${tagsDisplay}
           </div>
           <div class="card-meta">
             <span>🕒 ${totalTime} MIN</span>
-            <span style="color: var(--text-dark); font-weight: 900;">₱${costPerServing}</span>
+            <span style="color: var(--text-dark); font-weight: 700;">₱${costPerServing}</span>
           </div>
         </div>
       </div>
@@ -306,7 +311,6 @@ init: async function() {
     const galleryRecipes = shuffled.slice(0, 5);
     const featuredRecipes = shuffled.slice(5, 8);
 
-    // carousel
     const gallery = document.getElementById('homeGallery');
     if (gallery) {
       gallery.innerHTML = galleryRecipes.map(r => {
@@ -317,7 +321,7 @@ init: async function() {
         return `
           <div class="gallery-card" style="background-image: url('${bgImage}')" onclick="app.openDetail('${r.id}')">
             <div class="gallery-card-overlay">
-              <h3 style="margin:0; font-size: 1.3rem; text-transform: uppercase;">${r.name}</h3>
+              <h3>${r.name}</h3>
             </div>
           </div>
         `;
@@ -358,10 +362,10 @@ init: async function() {
     const catDl = document.getElementById('categoryDatalist');
     if (catDl) catDl.innerHTML = uniqueCategories.map(c => `<option value="${c}">`).join('');
     
-    let navHTML = `<button class="filter-btn ${this.currentCategory === 'All' ? 'active' : ''}" data-category="All">ALL</button>`;
+    let navHTML = `<button class="filter-btn ${this.currentCategory === 'All' ? 'active' : ''}" data-category="All">All</button>`;
     uniqueCategories.forEach(cat => {
       const isActive = this.currentCategory === cat ? 'active' : '';
-      navHTML += `<button class="filter-btn ${isActive}" data-category="${cat}">${cat.toUpperCase()}</button>`;
+      navHTML += `<button class="filter-btn ${isActive}" data-category="${cat}">${cat}</button>`;
     });
     nav.innerHTML = navHTML;
 
@@ -381,7 +385,7 @@ init: async function() {
     });
 
     if (filtered.length === 0) {
-      grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; font-weight: 800; color: #666;">No recipes found.</div>';
+      grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; font-weight: 700; color: #666;">No recipes found.</div>';
       return;
     }
 
@@ -410,7 +414,7 @@ init: async function() {
       const h1Match = trimmed.match(/^#\s+(.*)/);
       const olMatch = trimmed.match(/^(\d+\.)\s+(.*)/); 
       const ulMatch = trimmed.match(/^[-*]\s+(.*)/);    
-      const subtextMatch = trimmed.match(/^-#\s+(.*)/); // New Subtext Matcher
+      const subtextMatch = trimmed.match(/^-#\s+(.*)/); 
       
       if (h1Match) {
         formattedHTML += `<h1 style="color: var(--pop-orange); margin: 20px 0 8px 0; font-size: 2.2rem;">${h1Match[1]}</h1>`;
@@ -421,17 +425,16 @@ init: async function() {
       } else if (olMatch) {
         formattedHTML += `
           <div style="display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start;">
-            <span style="font-weight: 900; color: var(--pop-orange); font-size: 1.05rem; line-height: 1.4;">${olMatch[1]}</span>
+            <span style="font-weight: 700; color: var(--pop-orange); font-size: 1.05rem; line-height: 1.4;">${olMatch[1]}</span>
             <span style="flex: 1; line-height: 1.4;">${olMatch[2]}</span>
           </div>`;
       } else if (ulMatch) {
         formattedHTML += `
           <div style="display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start;">
-            <span style="font-weight: 900; color: var(--pop-orange); font-size: 1.2rem; line-height: 1.1;">•</span>
+            <span style="font-weight: 700; color: var(--pop-orange); font-size: 1.2rem; line-height: 1.1;">•</span>
             <span style="flex: 1; line-height: 1.4;">${ulMatch[1]}</span>
           </div>`;
       } else if (subtextMatch) {
-        // Small, grayed-out text similar to discord
         formattedHTML += `<p style="font-size: 0.8rem; color: var(--text-gray); margin-bottom: 6px; line-height: 1.4; opacity: 0.8;">${subtextMatch[1]}</p>`;
       } else {
         formattedHTML += `<p style="margin-bottom: 8px; line-height: 1.5;">${trimmed}</p>`;
@@ -459,7 +462,7 @@ init: async function() {
     }
   },
 
-insertMarkdown: function(prefix, suffix) {
+  insertMarkdown: function(prefix, suffix) {
     const textarea = document.getElementById('editProcedure');
     if (!textarea) return;
 
@@ -476,21 +479,18 @@ insertMarkdown: function(prefix, suffix) {
     let finalCursorStart = start;
     let finalCursorEnd = end;
 
-    // tags are OUTSIDE the highlighted text
     if (start >= pLen && text.substring(start - pLen, start) === prefix && text.substring(end, end + sLen) === suffix) {
       replaceStart = start - pLen;
       replaceEnd = end + sLen;
-      newText = selectedText; // Strip the tags
+      newText = selectedText; 
       finalCursorStart = start - pLen;
       finalCursorEnd = end - pLen;
     }
-    // tags are INSIDE the highlighted text 
     else if (selectedText.startsWith(prefix) && selectedText.endsWith(suffix) && selectedText.length >= pLen + sLen) {
-      newText = selectedText.substring(pLen, selectedText.length - sLen); // Strip the tags
+      newText = selectedText.substring(pLen, selectedText.length - sLen);
       finalCursorStart = start;
       finalCursorEnd = start + newText.length;
     }
-
     else {
       newText = prefix + selectedText + suffix;
       if (selectedText.length === 0 && suffix.length > 0) {
@@ -505,7 +505,6 @@ insertMarkdown: function(prefix, suffix) {
     textarea.setSelectionRange(replaceStart, replaceEnd);
 
     if (!document.execCommand("insertText", false, newText)) {
-      // Fallback for older browsers
       textarea.setRangeText(newText);
     }
 
@@ -541,13 +540,12 @@ insertMarkdown: function(prefix, suffix) {
     document.getElementById('detailImageBanner').style.backgroundImage = `url('${bgImage}')`;
 
     document.getElementById('detailTitle').textContent = recipe.name;
-    document.getElementById('detailCategory').textContent = recipe.category || "UNCLASSIFIED";
+    document.getElementById('detailCategory').textContent = recipe.category || "Unclassified";
     document.getElementById('detailPrep').textContent = recipe.prep_time || 0;
     document.getElementById('detailCook').textContent = recipe.cook_time || 0;
     document.getElementById('detailTime').textContent = (recipe.prep_time || 0) + (recipe.cook_time || 0);
     document.getElementById('detailProcedure').innerHTML = this.formatProcedure(recipe.procedure);
     
-    // Author Setup
     document.getElementById('detailAuthorName').textContent = recipe.author_name || 'Anonymous Chef';
     document.getElementById('detailAuthorAvatar').src = recipe.author_avatar || 'https://via.placeholder.com/35';
 
@@ -617,7 +615,7 @@ insertMarkdown: function(prefix, suffix) {
         if (!trimmed) return '';
         
         if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-          return `<li style="list-style: none; color: var(--pop-orange); font-weight: 900; margin-top: 15px; margin-bottom: 5px; text-transform: uppercase; border-bottom: 2px solid var(--border-color);">${trimmed.slice(1, -1)}</li>`;
+          return `<li style="list-style: none; color: var(--pop-orange); font-weight: 700; margin-top: 15px; margin-bottom: 5px; border-bottom: 2px solid var(--border-color);">${trimmed.slice(1, -1)}</li>`;
         }
         
         const match = trimmed.match(/^([\d.]+)\s*([a-zA-Z]+)?\s+(.*)$/);
@@ -637,10 +635,10 @@ insertMarkdown: function(prefix, suffix) {
           
           return `<li style="display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
                     <div style="display: flex; gap: 15px; flex: 1;">
-                      <span style="color: var(--accent-cyan); font-weight: 900; font-size: 1.05rem; min-width: 80px; text-align: right;">${scaledQty} ${unit}</span>
-                      <span style="font-weight: 600; color: var(--text-dark);">${name}</span>
+                      <span style="color: var(--accent-cyan); font-weight: 700; font-size: 1.05rem; min-width: 80px; text-align: right;">${scaledQty} ${unit}</span>
+                      <span style="font-weight: 500; color: var(--text-dark);">${name}</span>
                     </div>
-                    <span style="font-weight: 800; color: var(--text-gray); font-size: 0.9rem; min-width: 70px; text-align: right;">₱${lineCost}</span>
+                    <span style="font-weight: 700; color: var(--text-gray); font-size: 0.9rem; min-width: 70px; text-align: right;">₱${lineCost}</span>
                   </li>`;
         }
         return `<li style="padding: 10px 0;">${trimmed}</li>`;
@@ -649,11 +647,213 @@ insertMarkdown: function(prefix, suffix) {
     document.getElementById('detailIngredients').innerHTML = ingredientsHTML || '<li>No ingredients specified.</li>';
   },
 
-  shareRecipe: function() {
-    if (!this.currentOpenRecipeId) return;
+  openShareCard: function() {
+    if (!this.currentOpenRecipeId || !this.currentRecipeData) return;
+
+    const modal = document.getElementById('shareCardModal');
+    const recipe = this.currentRecipeData;
+    
+    document.getElementById('shareCardTitle').textContent = recipe.name;
+    document.getElementById('shareCardTags').textContent = (recipe.category || 'Uncategorized').split(',').map(t => t.trim()).join(' • ');
+
+    const rawImg = (recipe.image_url || '').trim().toLowerCase();
+    const bgImage = (rawImg.length > 5 && rawImg.startsWith('http')) ? recipe.image_url.trim() : 'https://placehold.co/600x600/eeeeee/999999?text=No+Image';
+    document.getElementById('shareCardImage').src = bgImage;
+
     const baseUrl = window.location.href.split('?')[0];
     const shareUrl = `${baseUrl}?recipe=${this.currentOpenRecipeId}`;
-    navigator.clipboard.writeText(shareUrl).then(() => alert("Link copied to clipboard!")).catch(() => alert("Failed to copy link."));
+    
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(shareUrl)}`;
+    document.getElementById('shareCardQR').src = qrUrl;
+    document.getElementById('shareCardLinkText').textContent = shareUrl;
+    
+    document.getElementById('shareCardCost').textContent = document.getElementById('detailCostPerServing').textContent;
+    document.getElementById('shareCardCal').textContent = document.getElementById('detailCalories').textContent;
+    document.getElementById('shareCardCarb').textContent = document.getElementById('detailCarbs').textContent + 'g';
+    document.getElementById('shareCardPro').textContent = document.getElementById('detailProtein').textContent + 'g';
+    document.getElementById('shareCardFat').textContent = document.getElementById('detailFat').textContent + 'g';
+
+    document.querySelector('.flip-container').classList.remove('flipped');
+    modal.classList.remove('hidden');
+  },
+
+  // ----------------------------------------------------------------------
+  // MODIFIED: Smart Shopping List Logic
+  // ----------------------------------------------------------------------
+  addRecipeToShoppingList: function() {
+    if (!this.currentRecipeData) return;
+    
+    const recipe = this.currentRecipeData;
+    const baseServings = recipe.servings || 1;
+    const targetServings = parseFloat(document.getElementById('detailServings').value) || 1;
+    const ratio = targetServings / baseServings;
+
+    if (recipe.raw_ingredients) {
+      recipe.raw_ingredients.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed || (trimmed.startsWith('[') && trimmed.endsWith(']'))) return;
+        
+        const match = trimmed.match(/^([\d.]+)\s*([a-zA-Z]+)?\s+(.*)$/);
+        if (match) {
+          const qty = +(parseFloat(match[1]) * ratio).toFixed(2);
+          const unit = match[2] ? match[2].trim() : '';
+          const name = match[3].trim();
+          
+          let unitCost = 0;
+          if (recipe.recipe_ingredients) {
+            const mapItem = recipe.recipe_ingredients.find(m => m.ingredients.name.toLowerCase() === name.toLowerCase());
+            if (mapItem) unitCost = parseFloat(mapItem.ingredients.cost_per_unit || 0);
+          }
+
+          const existingIndex = this.shoppingList.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
+          
+          if (existingIndex !== -1) {
+            // Deduplicate: If it exists, add the quantity
+            this.shoppingList[existingIndex].qty = parseFloat((this.shoppingList[existingIndex].qty + qty).toFixed(2));
+          } else {
+            // Otherwise add new item
+            this.shoppingList.push({
+              id: Date.now() + Math.random(),
+              name: name,
+              qty: qty,
+              unit: unit,
+              cost_per_unit: unitCost,
+              actual_cost: 0,
+              checked: false
+            });
+          }
+        }
+      });
+      this.saveShoppingList();
+      alert(`Added ingredients for ${targetServings} serving(s) to your Shopping List!`);
+    }
+  },
+
+  addManualShoppingItem: function() {
+    const nameInput = document.getElementById('manualShopName');
+    const qtyInput = document.getElementById('manualShopQty');
+    const unitInput = document.getElementById('manualShopUnit');
+
+    const name = nameInput.value.trim();
+    if (!name) return;
+
+    let qty = parseFloat(qtyInput.value) || 1;
+    let unit = unitInput.value.trim();
+    let costPerUnit = 0;
+
+    const found = this.ingredientsRegistry.find(i => i.name.toLowerCase() === name.toLowerCase());
+    if (found) {
+      if (!unit) unit = found.unit;
+      costPerUnit = parseFloat(found.cost_per_unit || 0);
+    }
+
+    const existingIndex = this.shoppingList.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
+          
+    if (existingIndex !== -1) {
+      // Deduplicate manually added items
+      this.shoppingList[existingIndex].qty = parseFloat((this.shoppingList[existingIndex].qty + qty).toFixed(2));
+    } else {
+      this.shoppingList.push({
+        id: Date.now(),
+        name: name,
+        qty: qty,
+        unit: unit,
+        cost_per_unit: costPerUnit,
+        actual_cost: 0,
+        checked: false
+      });
+    }
+
+    nameInput.value = '';
+    qtyInput.value = '1';
+    unitInput.value = '';
+    this.saveShoppingList();
+  },
+
+  renderShoppingList: function() {
+    const container = document.getElementById('shoppingListContainer');
+    if (!container) return;
+
+    if (this.shoppingList.length === 0) {
+      container.innerHTML = '<div style="text-align: center; color: var(--text-gray); font-weight: 700; margin-top: 30px;">Your shopping list is empty. Add items from a recipe or enter them manually above.</div>';
+      document.getElementById('shoppingEstTotal').textContent = '₱0.00';
+      document.getElementById('shoppingActTotal').textContent = '₱0.00';
+      return;
+    }
+
+    let estTotal = 0;
+    let actTotal = 0;
+
+    container.innerHTML = this.shoppingList.map((item, index) => {
+      const estLineCost = (item.qty * (item.cost_per_unit || 0)).toFixed(2);
+      estTotal += parseFloat(estLineCost);
+      actTotal += parseFloat(item.actual_cost || 0);
+
+      const checkedClass = item.checked ? 'bought' : '';
+      const checkboxStatus = item.checked ? 'checked' : '';
+
+      return `
+        <div class="shopping-row ${checkedClass}">
+          <input type="checkbox" ${checkboxStatus} onchange="app.updateShoppingItem(${index}, 'checked', this.checked)">
+          <div class="shopping-item-name">
+            <input type="text" value="${item.name}" list="ingredientDatalist" onchange="app.updateShoppingItem(${index}, 'name', this.value)" placeholder="Item Name">
+          </div>
+          <div class="shopping-item-qty">
+            <input type="number" value="${item.qty}" step="any" onchange="app.updateShoppingItem(${index}, 'qty', this.value)">
+          </div>
+          <div class="shopping-item-unit" style="display: flex; align-items: center; color: var(--text-gray); font-size: 0.95rem; font-weight: 600;">
+            ${item.unit}
+          </div>
+          <div class="shopping-item-est" style="display: flex; align-items: center;">₱${estLineCost}</div>
+          <div class="shopping-item-actual">
+            <input type="number" value="${item.actual_cost || ''}" placeholder="Actual Price" step="any" onchange="app.updateShoppingItem(${index}, 'actual_cost', this.value)">
+          </div>
+          <button class="btn-secondary" style="padding: 5px 10px; color: red; border-color: red; font-size: 0.7rem;" onclick="app.removeShoppingItem(${index})">X</button>
+        </div>
+      `;
+    }).join('');
+
+    document.getElementById('shoppingEstTotal').textContent = `₱${estTotal.toFixed(2)}`;
+    document.getElementById('shoppingActTotal').textContent = `₱${actTotal.toFixed(2)}`;
+  },
+
+  saveShoppingList: function() {
+    localStorage.setItem('renz_shopping_list', JSON.stringify(this.shoppingList));
+    if (document.getElementById('view-shopping').classList.contains('active')) {
+      this.renderShoppingList();
+    }
+  },
+
+  updateShoppingItem: function(index, field, value) {
+    if (field === 'qty' || field === 'actual_cost') value = parseFloat(value) || 0;
+    
+    if (field === 'name') {
+      const found = this.ingredientsRegistry.find(i => i.name.toLowerCase() === value.trim().toLowerCase());
+      if (found) {
+        this.shoppingList[index].cost_per_unit = parseFloat(found.cost_per_unit || 0);
+        this.shoppingList[index].unit = found.unit;
+      }
+    }
+
+    this.shoppingList[index][field] = value;
+    this.saveShoppingList();
+  },
+
+  removeShoppingItem: function(index) {
+    this.shoppingList.splice(index, 1);
+    this.saveShoppingList();
+  },
+
+  clearCheckedShoppingList: function() {
+    this.shoppingList = this.shoppingList.filter(item => !item.checked);
+    this.saveShoppingList();
+  },
+
+  clearAllShoppingList: function() {
+    if(confirm("Are you sure you want to clear your entire shopping list?")) {
+      this.shoppingList = [];
+      this.saveShoppingList();
+    }
   },
 
   loadReviews: async function(recipeId) {
@@ -716,7 +916,7 @@ insertMarkdown: function(prefix, suffix) {
     this.editIngredientsList = [];
     
     if (recipeObj) {
-      title.textContent = "EDIT RECIPE";
+      title.textContent = "Edit Recipe";
       document.getElementById('editId').value = recipeObj.id;
       document.getElementById('editImage').value = recipeObj.image_url || '';
       document.getElementById('editName').value = recipeObj.name;
@@ -744,7 +944,7 @@ insertMarkdown: function(prefix, suffix) {
       }
       this.injectDeleteButton(recipeObj.id);
     } else {
-      title.textContent = "NEW RECIPE";
+      title.textContent = "New Recipe";
       document.getElementById('editId').value = '';
       document.getElementById('editImage').value = '';
       document.getElementById('editName').value = '';
@@ -798,15 +998,15 @@ insertMarkdown: function(prefix, suffix) {
 
       if (item.type === 'divider') {
         row.innerHTML = `
-          <input type="text" value="${item.name}" oninput="app.editIngredientsList[${index}].name = this.value" placeholder="Section Name (e.g. Marinade)" style="flex: 1; padding: 10px; border: 2px solid var(--pop-orange); color: var(--pop-orange); font-weight: 900; outline: none; border-radius: 4px; text-transform: uppercase;">
-          <button class="btn-secondary" onclick="app.removeEditorIngredient(${index})" style="padding: 10px 15px; color: red; border-color: red; font-weight: 900;">X</button>
+          <input type="text" value="${item.name}" oninput="app.editIngredientsList[${index}].name = this.value" placeholder="Section Name (e.g. Marinade)" style="flex: 1; padding: 10px; border: 2px solid var(--pop-orange); color: var(--pop-orange); font-weight: 700; outline: none; border-radius: 4px;">
+          <button class="btn-secondary" onclick="app.removeEditorIngredient(${index})" style="padding: 10px 15px; color: red; border-color: red; font-weight: 700;">X</button>
         `;
       } else {
         row.innerHTML = `
           <input type="number" value="${item.qty}" oninput="app.editIngredientsList[${index}].qty = parseFloat(this.value) || 0" style="width: 80px; padding: 10px; border: 2px solid var(--border-color); outline: none; border-radius: 4px;" step="any">
-          <span style="width: 50px; text-align: center; font-weight: 900; color: var(--accent-cyan);">${item.unit}</span>
+          <span style="width: 50px; text-align: center; font-weight: 700; color: var(--accent-cyan);">${item.unit}</span>
           <input list="ingredientDatalist" value="${item.name}" onchange="app.updateEditorIngredientUnit(${index}, this.value)" oninput="app.editIngredientsList[${index}].name = this.value" placeholder="Type ingredient..." style="flex: 1; padding: 10px; border: 2px solid var(--border-color); outline: none; border-radius: 4px;">
-          <button class="btn-secondary" onclick="app.removeEditorIngredient(${index})" style="padding: 10px 15px; color: red; border-color: red; font-weight: 900;">X</button>
+          <button class="btn-secondary" onclick="app.removeEditorIngredient(${index})" style="padding: 10px 15px; color: red; border-color: red; font-weight: 700;">X</button>
         `;
       }
       container.appendChild(row);
@@ -830,7 +1030,7 @@ insertMarkdown: function(prefix, suffix) {
       delBtn.className = 'btn-secondary';
       delBtn.style.borderColor = 'red';
       delBtn.style.color = 'red';
-      delBtn.textContent = 'DELETE RECIPE';
+      delBtn.textContent = 'Delete Recipe';
       document.querySelector('.editor-actions').prepend(delBtn);
     }
     delBtn.style.display = 'inline-block';
@@ -840,7 +1040,7 @@ insertMarkdown: function(prefix, suffix) {
   saveRecipe: async function() {
     const idInput = document.getElementById('editId').value;
     const saveBtn = document.querySelector('.editor-actions .btn-primary');
-    saveBtn.textContent = "SAVING...";
+    saveBtn.textContent = "Saving...";
     saveBtn.disabled = true;
 
     const raw_ingredients = this.editIngredientsList.map(item => {
@@ -890,17 +1090,16 @@ insertMarkdown: function(prefix, suffix) {
         await client.from('recipe_ingredients').insert(mappingData);
       }
 
-      // Re-fetch all recipes to ensure Dashboard and Home get the new data
       await this.fetchRecipes();
 
-      saveBtn.textContent = "SAVE RECIPE";
+      saveBtn.textContent = "Save Recipe";
       saveBtn.disabled = false;
       this.openDetail(finalRecipeId);
 
     } catch (err) {
       console.error("Save Error:", err);
       alert("Failed to save recipe. Check console.");
-      saveBtn.textContent = "SAVE RECIPE";
+      saveBtn.textContent = "Save Recipe";
       saveBtn.disabled = false;
     }
   },

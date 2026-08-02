@@ -5,18 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Renz-Bot | Recipes</title>
   <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
 
   <header class="top-nav">
     <div style="display: flex; gap: 30px; align-items: center; flex-wrap: wrap;">
-      <div class="logo" onclick="app.showView('view-home')">RECIPES.</div>
+      <div class="logo" onclick="app.showView('view-home')">Recipes.</div>
       
       <nav class="nav-links">
-        <a id="nav-home" class="active" onclick="app.showView('view-home')">HOME</a>
-        <a id="nav-browse" onclick="app.showView('view-dashboard')">BROWSE</a>
-        <a id="nav-pantry" onclick="app.showView('view-ingredients')">PANTRY</a>
+        <a id="nav-home" class="active" onclick="app.showView('view-home')">Home</a>
+        <a id="nav-browse" onclick="app.showView('view-dashboard')">Browse</a>
+        <a id="nav-pantry" onclick="app.showView('view-ingredients')">Pantry</a>
+        <a id="nav-cart" onclick="app.showView('view-shopping')">List</a>
       </nav>
     </div>
 
@@ -24,12 +24,12 @@
       <div id="userProfile" style="display: none; align-items: center; gap: 10px; font-weight: 800; font-size: 0.8rem;">
         <img id="userAvatar" src="" style="width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--text-dark);">
         <span id="userName">User</span>
-        <button class="btn-secondary" style="padding: 8px 12px; font-size: 0.7rem;" onclick="app.logout()">LOGOUT</button>
-        <button class="btn-primary" onclick="app.openEditor()">+ NEW RECIPE</button>
+        <button class="btn-secondary" style="padding: 8px 12px; font-size: 0.8rem;" onclick="app.logout()">Logout</button>
+        <button class="btn-primary" onclick="app.openEditor()">+ New Recipe</button>
       </div>
       
       <button id="loginBtn" class="btn-primary" style="background-color: #5865F2; box-shadow: 0 4px 0 0 #4752C4;" onclick="app.loginWithDiscord()">
-        LOGIN WITH DISCORD
+        Login with Discord
       </button>
     </div>
   </header>
@@ -39,7 +39,7 @@
       <div class="hero-content">
         <h1>hi</h1>
         <p>may pagkain dito.</p>
-        <button class="btn-primary" style="background: white; color: var(--pop-orange); font-size: 1.1rem; padding: 15px 30px;" onclick="app.showView('view-dashboard')">MAGPATULOY</button>
+        <button class="btn-primary" style="background: white; color: var(--pop-orange); font-size: 1.1rem; padding: 15px 30px;" onclick="app.showView('view-dashboard')">Magpatuloy</button>
       </div>
       
       <div class="gallery-wrapper">
@@ -49,7 +49,7 @@
     </section>
 
     <section style="padding: 60px 40px; max-width: 1200px; margin: 0 auto;">
-      <h2 style="color: var(--pop-orange); font-size: 2rem; margin-bottom: 30px; text-align: center; border-bottom: 3px solid var(--border-color); padding-bottom: 10px;">FEATURED RECIPES</h2>
+      <h2 style="color: var(--pop-orange); font-size: 2rem; margin-bottom: 30px; text-align: center; border-bottom: 3px solid var(--border-color); padding-bottom: 10px;">Featured Recipes</h2>
       <div class="recipe-grid" id="homeFeatured">
         </div>
     </section>
@@ -59,7 +59,7 @@
     <div class="toolbar">
       <input type="text" id="searchInput" placeholder="Search menu...">
       <div class="filters" id="categoryNav">
-        <button class="filter-btn active" data-category="All">ALL</button>
+        <button class="filter-btn active" data-category="All">All</button>
       </div>
     </div>
     <div class="recipe-grid" id="recipeGrid">
@@ -68,11 +68,12 @@
 
   <main id="view-detail" class="view">
     <div class="page-header" style="display: flex; justify-content: space-between;">
-      <button class="btn-secondary" onclick="app.showView('view-dashboard')">← BACK TO MENU</button>
+      <button class="btn-secondary" onclick="app.showView('view-dashboard')">← Back to Menu</button>
       <div style="display: flex; gap: 10px;">
-        <button class="btn-secondary" onclick="app.shareRecipe()" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">🔗 SHARE</button>
-        <button class="btn-secondary" onclick="window.print()" style="border-color: var(--text-dark);">🖨️ PRINT PDF</button>
-        <button class="btn-primary" id="detailEditBtn">EDIT ITEM</button>
+        <button class="btn-secondary" onclick="app.openShareCard()" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">🔗 Share</button>
+        <button class="btn-secondary" onclick="app.addRecipeToShoppingList()" style="border-color: #10B981; color: #10B981;">🛒 Add to List</button>
+        <button class="btn-secondary" onclick="window.print()" style="border-color: var(--text-dark);">🖨️ Print PDF</button>
+        <button class="btn-primary" id="detailEditBtn">Edit Item</button>
       </div>
     </div>
     
@@ -88,10 +89,10 @@
         </div>
         
         <div style="display: flex; gap: 15px; margin-top: 15px; align-items: center; flex-wrap: wrap;">
-          <span class="category-tag" id="detailCategory">CATEGORY</span>
+          <span class="category-tag" id="detailCategory">Category</span>
           
           <div style="display: flex; align-items: center; gap: 8px; background: var(--bg-light); padding: 5px 10px; border-radius: 8px; border: 2px solid var(--border-color);">
-            <span style="font-weight: 800; font-size: 0.8rem; color: var(--text-gray);">SERVINGS:</span>
+            <span style="font-weight: 800; font-size: 0.8rem; color: var(--text-gray);">Servings:</span>
             <button class="btn-secondary" style="padding: 2px 8px; font-size: 0.7rem;" onclick="app.scaleServings(-1)">▼</button>
             <input type="number" id="detailServings" onchange="app.setServings(this.value)" style="width: 50px; text-align: center; border: none; font-weight: 900; font-size: 1.1rem; background: transparent; outline: none;" value="1" min="0.1" step="any">
             <button class="btn-secondary" style="padding: 2px 8px; font-size: 0.7rem;" onclick="app.scaleServings(1)">▲</button>
@@ -117,19 +118,19 @@
           <div style="display: flex; gap: 15px; justify-content: space-around; width: 100%;">
             <div style="display: flex; flex-direction: column; align-items: center;">
               <span id="detailCalories" style="font-weight: 900; font-size: 1.5rem; line-height: 1;">0</span>
-              <span style="font-size: 0.65rem; font-weight: 800; opacity: 0.9; margin-top: 4px; text-transform: uppercase;">Calories</span>
+              <span style="font-size: 0.65rem; font-weight: 800; opacity: 0.9; margin-top: 4px;">Calories</span>
             </div>
             <div style="display: flex; flex-direction: column; align-items: center;">
               <span id="detailCarbs" style="font-weight: 900; font-size: 1.5rem; line-height: 1;">0</span>
-              <span style="font-size: 0.65rem; font-weight: 800; opacity: 0.9; margin-top: 4px; text-transform: uppercase;">Carbs</span>
+              <span style="font-size: 0.65rem; font-weight: 800; opacity: 0.9; margin-top: 4px;">Carbs</span>
             </div>
             <div style="display: flex; flex-direction: column; align-items: center;">
               <span id="detailProtein" style="font-weight: 900; font-size: 1.5rem; line-height: 1;">0</span>
-              <span style="font-size: 0.65rem; font-weight: 800; opacity: 0.9; margin-top: 4px; text-transform: uppercase;">Protein</span>
+              <span style="font-size: 0.65rem; font-weight: 800; opacity: 0.9; margin-top: 4px;">Protein</span>
             </div>
             <div style="display: flex; flex-direction: column; align-items: center;">
               <span id="detailFat" style="font-weight: 900; font-size: 1.5rem; line-height: 1;">0</span>
-              <span style="font-size: 0.65rem; font-weight: 800; opacity: 0.9; margin-top: 4px; text-transform: uppercase;">Fat</span>
+              <span style="font-size: 0.65rem; font-weight: 800; opacity: 0.9; margin-top: 4px;">Fat</span>
             </div>
           </div>
         </div>
@@ -137,20 +138,20 @@
 
       <div class="detail-body">
         <div class="ingredients-section">
-          <h2>INGREDIENTS</h2>
+          <h2>Ingredients</h2>
           <ul id="detailIngredients"></ul>
         </div>
         <div class="procedure-section">
-          <h2>PROCEDURE</h2>
+          <h2>Procedure</h2>
           <div id="detailProcedure" style="font-weight: 500; font-size: 1.1rem;"></div>
         </div>
       </div>
 
       <div class="reviews-section" style="padding: 40px;">
-        <h2>COMMUNITY RATINGS</h2>
+        <h2>Community Ratings</h2>
         
         <div id="reviewFormContainer" class="review-form" style="display: none;">
-          <h3 style="color: var(--accent-cyan); font-size: 1rem;">LEAVE A REVIEW</h3>
+          <h3 style="color: var(--accent-cyan); font-size: 1rem;">Leave a Review</h3>
           <select id="reviewRating" style="padding: 10px; border: 2px solid var(--border-color); outline: none; font-weight: bold; width: 150px;">
             <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
             <option value="4">⭐⭐⭐⭐ (4/5)</option>
@@ -158,8 +159,8 @@
             <option value="2">⭐⭐ (2/5)</option>
             <option value="1">⭐ (1/5)</option>
           </select>
-          <textarea id="reviewText" rows="3" placeholder="What did you think of this recipe?" style="padding: 10px; border: 2px solid var(--border-color); outline: none; font-family: 'Inter';"></textarea>
-          <button class="btn-primary" style="width: 200px;" onclick="app.submitReview()">POST REVIEW</button>
+          <textarea id="reviewText" rows="3" placeholder="What did you think of this recipe?" style="padding: 10px; border: 2px solid var(--border-color); outline: none;"></textarea>
+          <button class="btn-primary" style="width: 200px;" onclick="app.submitReview()">Post Review</button>
         </div>
         <div id="loginPrompt" style="margin-bottom: 30px; font-weight: bold; color: var(--text-gray);">
           Login with Discord to leave a rating and comment!
@@ -172,10 +173,10 @@
   
   <main id="view-editor" class="view">
     <div class="page-header">
-      <h1 id="editorTitle" class="page-title">NEW RECIPE</h1>
+      <h1 id="editorTitle" class="page-title">New Recipe</h1>
       <div class="editor-actions">
-        <button class="btn-secondary" onclick="app.cancelEdit()">CANCEL</button>
-        <button class="btn-primary" onclick="app.saveRecipe()">SAVE RECIPE</button>
+        <button class="btn-secondary" onclick="app.cancelEdit()">Cancel</button>
+        <button class="btn-primary" onclick="app.saveRecipe()">Save Recipe</button>
       </div>
     </div>
 
@@ -184,11 +185,11 @@
       
       <div class="form-row">
         <div class="form-group flex-2">
-          <label>ITEM NAME</label>
+          <label>Item Name</label>
           <input type="text" id="editName" placeholder="e.g. Classic Fried Chicken">
         </div>
         <div class="form-group flex-1">
-          <label>TAGS (COMMA SEPARATED)</label>
+          <label>Tags (Comma Separated)</label>
           <input type="text" id="editCategory" list="categoryDatalist" placeholder="e.g. Main, Chicken, Fried">
           <datalist id="categoryDatalist"></datalist>
         </div>
@@ -196,42 +197,42 @@
 
       <div class="form-row">
         <div class="form-group flex-1">
-          <label>RECIPE IMAGE URL</label>
+          <label>Recipe Image URL</label>
           <input type="text" id="editImage" placeholder="https://imgur.com/your-image.png">
         </div>
       </div>
 
       <div class="form-row">
         <div class="form-group">
-          <label>DEFAULT SERVINGS</label>
+          <label>Default Servings</label>
           <input type="number" id="editServings" value="1" min="1" step="any">
         </div>
         <div class="form-group">
-          <label>PREP (MIN)</label>
+          <label>Prep Time (Min)</label>
           <input type="number" id="editPrepTime" value="0">
         </div>
         <div class="form-group">
-          <label>COOK (MIN)</label>
+          <label>Cook Time (Min)</label>
           <input type="number" id="editCookTime" value="0">
         </div>
       </div>
 
       <div class="form-group" style="border: 2px solid var(--border-color); padding: 20px; border-radius: 8px;">
-        <label style="color: var(--text-dark); font-size: 1rem; margin-bottom: 15px;">INGREDIENT MANAGER</label>
+        <label style="color: var(--text-dark); font-size: 1rem; margin-bottom: 15px;">Ingredient Manager</label>
         
         <div id="editorIngredientsContainer" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
           </div>
         
         <div style="display: flex; gap: 10px;">
-          <button class="btn-secondary" onclick="app.addEditorIngredient('ingredient')" style="padding: 8px 12px; font-size: 0.8rem; background: var(--bg-light);">+ ADD INGREDIENT</button>
-          <button class="btn-secondary" onclick="app.addEditorIngredient('divider')" style="padding: 8px 12px; font-size: 0.8rem; border-color: var(--pop-orange); color: var(--pop-orange); background: var(--bg-white);">+ ADD SECTION [HEADER]</button>
+          <button class="btn-secondary" onclick="app.addEditorIngredient('ingredient')" style="padding: 8px 12px; font-size: 0.8rem; background: var(--bg-light);">+ Add Ingredient</button>
+          <button class="btn-secondary" onclick="app.addEditorIngredient('divider')" style="padding: 8px 12px; font-size: 0.8rem; border-color: var(--pop-orange); color: var(--pop-orange); background: var(--bg-white);">+ Add Section [Header]</button>
         </div>
         <datalist id="ingredientDatalist"></datalist>
       </div>
 
       <div class="form-group">
         <label style="display: flex; justify-content: space-between;">
-          <span>PROCEDURE</span>
+          <span>Procedure</span>
           <span style="color: var(--accent-cyan); cursor: pointer; font-size: 0.85rem;" onclick="app.togglePreview()">👁️ Toggle Live Preview</span>
         </label>
         
@@ -256,19 +257,19 @@
 
   <main id="view-ingredients" class="view">
     <div class="page-header">
-      <h1 class="page-title">INGREDIENT LIST</h1>
+      <h1 class="page-title">Ingredient List</h1>
     </div>
 
     <div class="editor-form" style="margin-bottom: 40px; border-color: var(--accent-cyan);">
-        <h3 style="margin-bottom: 20px; color: var(--accent-cyan);">+ REGISTER NEW INGREDIENT</h3>
+        <h3 style="margin-bottom: 20px; color: var(--accent-cyan);">+ Register New Ingredient</h3>
         
         <div class="form-row">
           <div class="form-group flex-2">
-            <label>INGREDIENT NAME</label>
+            <label>Ingredient Name</label>
             <input type="text" id="ingName" placeholder="e.g. Vanilla Extract">
           </div>
           <div class="form-group flex-1">
-            <label>STORE AMOUNT & UNIT</label>
+            <label>Store Amount & Unit</label>
             <div style="display: flex; gap: 10px;">
               <input type="number" id="ingAmount" placeholder="Qty" style="width: 50%;">
               <select id="ingUnit" style="width: 50%; padding: 14px; border: 2px solid var(--border-color); border-radius: 4px; font-weight: 600; outline: none;">
@@ -287,33 +288,31 @@
             </div>
           </div>
           <div class="form-group flex-1">
-            <label>STORE COST (₱)</label>
+            <label>Store Cost (₱)</label>
             <input type="number" id="ingCost" placeholder="e.g. 150">
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group flex-1">
-            <label>CATEGORY</label>
+            <label>Category</label>
             <input type="text" id="ingCategory" placeholder="e.g. Baking">
           </div>
           <div class="form-group flex-1">
-            <label>SUBCATEGORY</label>
+            <label>Subcategory</label>
             <input type="text" id="ingSubcategory" placeholder="Optional">
           </div>
           <div class="form-group flex-2">
-            <label>NOTES</label>
+            <label>Notes</label>
             <input type="text" id="ingNotes" placeholder="Brand names, store bought from, etc.">
           </div>
         </div>
 
-        <button class="btn-primary" style="background-color: var(--accent-cyan);" onclick="app.saveIngredient()">ADD INGREDIENT</button>
+        <button class="btn-primary" style="background-color: var(--accent-cyan);" onclick="app.saveIngredient()">Add Ingredient</button>
     </div>
 
-<div style="background: white; border: 2px solid var(--border-color); border-radius: 8px; padding: 20px;">
-      
+    <div style="background: white; border: 2px solid var(--border-color); border-radius: 8px; padding: 20px;">
       <div style="width: 100%; overflow-x: auto;">
-        
         <table style="width: 100%; text-align: left; border-collapse: collapse; white-space: nowrap;">
           <thead>
             <tr style="border-bottom: 2px solid var(--text-dark); color: var(--text-gray); font-size: 0.8rem;">
@@ -334,9 +333,88 @@
           <tbody id="ingredientsTableBody">
             </tbody>
         </table>
-        
       </div>
     </div>
+  </main>
+
+  <main id="view-shopping" class="view">
+    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+      <h1 class="page-title">Shopping List</h1>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn-secondary" style="color: #666; border-color: #666;" onclick="app.clearCheckedShoppingList()">Clear Checked</button>
+        <button class="btn-secondary" style="color: red; border-color: red;" onclick="app.clearAllShoppingList()">Clear All</button>
+      </div>
+    </div>
+
+    <div class="editor-form" style="margin-bottom: 30px;">
+      <h3 style="margin-bottom: 15px; color: var(--text-dark);">+ Manual Entry</h3>
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <input type="text" id="manualShopName" list="ingredientDatalist" placeholder="Item Name" style="flex: 2; padding: 10px; border: 2px solid var(--border-color); border-radius: 4px; outline: none;">
+        <input type="number" id="manualShopQty" value="1" step="any" style="flex: 1; padding: 10px; border: 2px solid var(--border-color); border-radius: 4px; outline: none;">
+        <input type="text" id="manualShopUnit" placeholder="Unit" style="flex: 1; padding: 10px; border: 2px solid var(--border-color); border-radius: 4px; outline: none;">
+        <button class="btn-primary" onclick="app.addManualShoppingItem()">Add Item</button>
+      </div>
+    </div>
+
+    <div style="background: white; border: 2px solid var(--border-color); border-radius: 8px; padding: 20px; overflow-x: auto;">
+      <div style="min-width: 700px;">
+        <div style="display: grid; grid-template-columns: 40px 3fr 1fr 60px 1fr 1fr 50px; gap: 10px; font-weight: bold; color: var(--text-gray); font-size: 0.8rem; border-bottom: 2px solid var(--text-dark); padding-bottom: 10px; margin-bottom: 15px;">
+          <div style="text-align: center;">✓</div>
+          <div>ITEM</div>
+          <div>QTY</div>
+          <div>UNIT</div>
+          <div>EST. COST</div>
+          <div>ACTUAL PRICE</div>
+          <div></div>
+        </div>
+        <div id="shoppingListContainer"></div>
+        <div style="margin-top: 20px; border-top: 2px solid var(--text-dark); padding-top: 15px; display: flex; justify-content: flex-end; gap: 40px; font-size: 1.2rem;">
+          <div><span style="font-size: 0.8rem; color: var(--text-gray); font-weight: bold;">EST TOTAL:</span> <span id="shoppingEstTotal" style="font-weight: 900; color: var(--text-dark);">₱0.00</span></div>
+          <div><span style="font-size: 0.8rem; color: var(--text-gray); font-weight: bold;">ACTUAL TOTAL:</span> <span id="shoppingActTotal" style="font-weight: 900; color: var(--pop-orange);">₱0.00</span></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- SHARE CARD MODAL -->
+  <div id="shareCardModal" class="modal-overlay hidden" onclick="if(event.target===this) this.classList.add('hidden')">
+    <div class="share-card-container">
+      <button class="close-modal-btn" onclick="document.getElementById('shareCardModal').classList.add('hidden')">×</button>
+      <div class="share-card">
+        <div class="share-card-header">
+          <h2 id="shareCardTitle">Recipe Title</h2>
+          <p id="shareCardTags">Tags</p>
+        </div>
+        
+        <div class="flip-container" onclick="this.classList.toggle('flipped')">
+          <div class="flipper">
+            <div class="front">
+              <img id="shareCardImage" src="" alt="Recipe Image">
+              <div class="flip-prompt">Tap to view QR</div>
+            </div>
+            <div class="back">
+              <img id="shareCardQR" src="" alt="QR Code">
+              <p id="shareCardLinkText"></p>
+              <div class="flip-prompt">Tap to flip back</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="share-card-footer">
+          <div class="share-price">
+            <span class="price-val">₱<span id="shareCardCost">0.00</span></span>
+            <span class="price-label">/ serving</span>
+          </div>
+          <div class="share-macros">
+            <div><span id="shareCardCal">0</span><small>CAL</small></div>
+            <div><span id="shareCardCarb">0g</span><small>CARB</small></div>
+            <div><span id="shareCardPro">0g</span><small>PRO</small></div>
+            <div><span id="shareCardFat">0g</span><small>FAT</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
