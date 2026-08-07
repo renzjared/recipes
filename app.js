@@ -372,20 +372,17 @@ const app = {
     `;
   },
 
-  renderHome: function() {
+renderHome: function() {
     if (!this.recipes || this.recipes.length === 0) return;
 
+    // 1. CAROUSEL GALLERY (Top 5 Random)
     const shuffled = [...this.recipes].sort(() => 0.5 - Math.random());
-    const galleryRecipes = shuffled.slice(0, 5);
-    const featuredRecipes = shuffled.slice(5, 8);
-
     const gallery = document.getElementById('homeGallery');
     if (gallery) {
-      gallery.innerHTML = galleryRecipes.map(r => {
+      gallery.innerHTML = shuffled.slice(0, 5).map(r => {
         const rawImg = (r.image_url || '').trim().toLowerCase();
         const isValidImg = rawImg.length > 5 && rawImg.startsWith('http');
         const bgImage = isValidImg ? r.image_url.trim() : 'https://placehold.co/600x400/eeeeee/999999?text=No+Image';
-        
         return `
           <div class="gallery-card" style="background-image: url('${bgImage}')" onclick="app.openDetail('${r.id}')">
             <div class="gallery-card-overlay">
@@ -406,10 +403,71 @@ const app = {
       }, 3500);
     }
 
-    const featured = document.getElementById('homeFeatured');
-    if (featured) {
-      featured.innerHTML = featuredRecipes.map(r => this.createRecipeCardHTML(r)).join('');
-    }
+    // 2. DYNAMIC CATEGORIES SETUP
+    const container = document.getElementById('dynamicHomeCategories');
+    if (!container) return;
+    container.innerHTML = ''; // Clear container
+
+    // Helper functions for dynamic sorting
+    const getCost = (r) => {
+      let baseCost = 0;
+      if (r.recipe_ingredients) {
+        r.recipe_ingredients.forEach(m => {
+          if (m.ingredients) baseCost += (m.qty * parseFloat(m.ingredients.cost_per_unit || 0));
+        });
+      }
+      const servings = parseFloat(r.servings) || 1;
+      return baseCost / servings;
+    };
+    const getTime = (r) => (Number(r.prep_time) || 0) + (Number(r.cook_time) || 0);
+
+    const renderSection = (title, icon, recipesToRender) => {
+      if (recipesToRender.length === 0) return;
+      container.innerHTML += `
+        <div style="margin-bottom: 70px;">
+          <h2 class="dynamic-section-title"><span>${icon}</span> ${title}</h2>
+          <div class="recipe-grid">
+            ${recipesToRender.map(r => this.createRecipeCardHTML(r)).join('')}
+          </div>
+        </div>
+      `;
+    };
+
+    // A. CHEAP EATS (Lowest Cost > 0)
+    let cheapRecipes = [...this.recipes].filter(r => getCost(r) > 0).sort((a, b) => getCost(a) - getCost(b)).slice(0, 3);
+    renderSection('Cheap Eats', '', cheapRecipes);
+
+    // B. QUICK BITES (Lowest Time > 0)
+    let quickRecipes = [...this.recipes].filter(r => getTime(r) > 0).sort((a, b) => getTime(a) - getTime(b)).slice(0, 3);
+    renderSection('Quick Bites', '', quickRecipes);
+
+    // C. AIR-FRYER MAGIC (Regex search by tag)
+    let airfryerRecipes = this.recipes.filter(r => (r.category || '').toLowerCase().includes('air-fryer') || (r.category || '').toLowerCase().includes('airfryer')).slice(0, 3);
+    renderSection('Air-Fryer', '', airfryerRecipes);
+
+    // D. TOP POPULATED CATEGORIES
+    const categoryCounts = {};
+    this.recipes.forEach(r => {
+      const tags = (r.category || '').split(',').map(t => t.trim()).filter(t => t);
+      tags.forEach(t => {
+        const lowerT = t.toLowerCase();
+        // Prevent generic/already used tags from dominating
+        if(lowerT !== 'air-fryer' && lowerT !== 'airfryer' && lowerT !== 'main') {
+          categoryCounts[t] = (categoryCounts[t] || 0) + 1;
+        }
+      });
+    });
+
+    // Sort the tags by frequency, take top 2, and render
+    const sortedTags = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a]).slice(0, 4);
+    
+    sortedTags.forEach(tag => {
+      const tagRecipes = this.recipes.filter(r => (r.category || '').toLowerCase().includes(tag.toLowerCase())).slice(0, 3);
+      // Pick a random fun emoji for dynamic tags
+      const icons = ['🔥', '✨', '😋', '🌟', '👨‍🍳', '🍲', '❤️'];
+      const randIcon = ''; // icons[Math.floor(Math.random() * icons.length)]
+      renderSection(`Top Rated: ${tag}`, randIcon, tagRecipes);
+    });
   },
 
   renderDashboard: function() {

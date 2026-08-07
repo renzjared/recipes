@@ -11,7 +11,7 @@
 
   <header class="top-nav">
     <div style="display: flex; gap: 30px; align-items: center; flex-wrap: wrap;">
-      <div class="logo" onclick="app.showView('view-home')">Recipes.</div>
+      <div class="logo" onclick="app.showView('view-home')">recipes</div>
       
       <nav class="nav-links">
         <a id="nav-home" class="active" onclick="app.showView('view-home')">Home</a>
@@ -35,25 +35,57 @@
     </div>
   </header>
 
-  <main id="view-home" class="view active" style="padding: 0; max-width: 100%;">
-    <section class="hero-section">
+<main id="view-home" class="view active" style="padding: 0; max-width: 100%;">
+    
+    <!-- REFRESHED HERO SECTION -->
+    <section class="hero-section" style="border-radius: 0 0 40px 40px; box-shadow: 0 8px 0 0 rgba(0,0,0,0.05);">
       <div class="hero-content">
-        <h1>hi</h1>
-        <p>may pagkain dito.</p>
-        <button class="btn-primary" style="background: white; color: var(--pop-orange); box-shadow: 0 4px 0 0 #ffd6c2; font-size: 1.2rem; padding: 15px 35px; border-radius: 24px;" onclick="app.showView('view-dashboard')">Magpatuloy</button>
+        <h1 style="font-size: 4.5rem; letter-spacing: -2px;">i like <span style="color: #ffe8d6;">food.</span></h1>
+        <p style="font-size: 1.4rem;">Ang inyong smart at friendly na recipe manager at pantry tracker (more soon).</p>
+        <button class="btn-primary" style="background: white; color: var(--pop-orange); box-shadow: 0 6px 0 0 #ffd6c2; font-size: 1.3rem; padding: 18px 40px; border-radius: 999px; margin-top: 10px;" onclick="app.showView('view-dashboard')">let me cook</button>
       </div>
       
       <div class="gallery-wrapper">
         <div class="gallery-track" id="homeGallery">
-          </div>
+          <!-- JS Populates Carousel Here -->
+        </div>
       </div>
     </section>
 
-    <section style="padding: 60px 40px; max-width: 1200px; margin: 0 auto;">
-      <h2 style="color: var(--pop-orange); font-size: 2.2rem; margin-bottom: 30px; text-align: center; border-bottom: 3px solid var(--border-color); padding-bottom: 10px;">Featured Recipes</h2>
-      <div class="recipe-grid" id="homeFeatured">
+    <!-- FRIENDLY MARKETING ROWS -->
+    <section class="marketing-section">
+      <div class="marketing-row">
+        <div class="marketing-icon">🛒</div>
+        <div class="marketing-text">
+          <h2 style="color: var(--accent-cyan);">Smart Grocery Lists</h2>
+          <p>Convert any recipe into a highly organized shopping list instantly. We combine overlapping ingredients and calculate your exact estimated store cost.</p>
         </div>
+      </div>
+
+      <div class="marketing-row reverse">
+        <div class="marketing-icon">📊</div>
+        <div class="marketing-text">
+          <h2 style="color: var(--pop-orange);">Track Every Macro</h2>
+          <p>Stay on top of your diet effortlessly. Link pantry ingredients to automatically calculate the calories, carbs, protein, and fat for every single serving.</p>
+        </div>
+      </div>
+
+      <div class="marketing-row">
+        <div class="marketing-icon">🔗</div>
+        <div class="marketing-text">
+          <h2 style="color: var(--hint-purple);">Share with a Snap</h2>
+          <p>Generate beautiful, mobile-friendly recipe cards instantly. Let friends scan your custom QR code to view and cook your culinary masterpieces (or abomination).</p>
+        </div>
+      </div>
     </section>
+
+    <!-- DYNAMIC FEATURED CATEGORIES -->
+    <section style="background: var(--bg-white); padding: 80px 40px; border-top: 6px dashed var(--border-color); border-radius: 40px 40px 0 0;">
+      <div style="max-width: 1200px; margin: 0 auto;" id="dynamicHomeCategories">
+        <!-- JS Autogenerates Sections Here (Cheap Eats, Quick Bites, etc.) -->
+      </div>
+    </section>
+
   </main>
 
   <main id="view-dashboard" class="view">
