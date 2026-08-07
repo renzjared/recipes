@@ -220,7 +220,7 @@ const app = {
 
     sortedData.forEach(ing => {
       const tr = document.createElement('tr');
-      tr.style.borderBottom = "1px solid #f1f5f9";
+      tr.style.borderBottom = "2px solid #f1f5f9";
       tr.style.transition = "background-color 0.2s";
       tr.onmouseover = () => tr.style.backgroundColor = "#f8fafc";
       tr.onmouseout = () => tr.style.backgroundColor = "transparent";
@@ -230,16 +230,16 @@ const app = {
       tr.innerHTML = `
         <td style="padding: 15px; font-size: 1.5rem; text-align: center;" title="${ing.category || 'Uncategorized'}">${catIcon}</td>
         <td style="padding: 15px;">
-          <div style="font-weight: 700; color: var(--text-dark); font-size: 0.95rem;">${ing.name}</div>
-          <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 2px;">${ing.notes || 'No notes'}</div>
+          <div style="font-weight: 800; color: var(--text-dark); font-size: 1.05rem;">${ing.name}</div>
+          <div style="font-size: 0.85rem; color: #94a3b8; font-weight: 600; margin-top: 4px;">${ing.notes || 'No notes'}</div>
         </td>
         <td style="padding: 15px;">
-          <div style="font-weight: 600; color: var(--text-gray); font-size: 0.85rem;">${(ing.category || '---')}</div>
-          <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 500;">${(ing.subcategory || '')}</div>
+          <div style="font-weight: 800; color: var(--text-gray); font-size: 0.95rem;">${(ing.category || '---')}</div>
+          <div style="font-size: 0.8rem; color: #94a3b8; font-weight: 700; margin-top: 2px;">${(ing.subcategory || '')}</div>
         </td>
-        <td style="padding: 15px; font-weight: 700; color: var(--accent-cyan);">${ing.unit}</td>
-        <td style="padding: 15px; font-weight: 700; color: var(--pop-orange);">₱${parseFloat(ing.cost_per_unit||0).toFixed(2)}</td>
-        <td style="padding: 15px; font-size: 0.8rem; font-weight: 600; color: #64748b; white-space: nowrap;">
+        <td style="padding: 15px; font-weight: 800; color: var(--accent-cyan); font-size: 1.05rem;">${ing.unit}</td>
+        <td style="padding: 15px; font-weight: 900; font-size: 1.1rem; color: var(--pop-orange);">₱${parseFloat(ing.cost_per_unit||0).toFixed(2)}</td>
+        <td style="padding: 15px; font-size: 0.9rem; font-weight: 700; color: #64748b; white-space: nowrap;">
           <span title="Calories" style="color: var(--hint-purple);">🔥 ${parseFloat(ing.calories_per_unit||0).toFixed(1)}</span> &nbsp;
           <span title="Carbohydrates" style="color: #d97706;">🌾 ${parseFloat(ing.carbs_per_unit||0).toFixed(1)}g</span> &nbsp;
           <span title="Protein" style="color: #dc2626;">🥩 ${parseFloat(ing.protein_per_unit||0).toFixed(1)}g</span> &nbsp;
@@ -248,6 +248,24 @@ const app = {
       `;
       tbody.appendChild(tr);
     });
+  },
+
+  // NEW: Calculate macro dynamically while registering ingredient
+  calcMacrosUI: function() {
+    const amount = parseFloat(document.getElementById('ingAmount').value) || 0;
+    const unit = document.getElementById('ingUnit').value || 'unit';
+    
+    const cal = parseFloat(document.getElementById('ingCal').value) || 0;
+    const carb = parseFloat(document.getElementById('ingCarb').value) || 0;
+    const pro = parseFloat(document.getElementById('ingPro').value) || 0;
+    const fat = parseFloat(document.getElementById('ingFat').value) || 0;
+
+    const formatVal = (val) => amount > 0 ? (val / amount).toFixed(2) : 0;
+
+    document.getElementById('ingCalSub').textContent = `${formatVal(cal)} per ${unit}`;
+    document.getElementById('ingCarbSub').textContent = `${formatVal(carb)}g per ${unit}`;
+    document.getElementById('ingProSub').textContent = `${formatVal(pro)}g per ${unit}`;
+    document.getElementById('ingFatSub').textContent = `${formatVal(fat)}g per ${unit}`;
   },
 
   saveIngredient: async function() {
@@ -259,6 +277,11 @@ const app = {
     const category = document.getElementById('ingCategory').value.trim();
     const subcategory = document.getElementById('ingSubcategory').value.trim();
     const notes = document.getElementById('ingNotes').value.trim();
+
+    const cal = parseFloat(document.getElementById('ingCal').value) || 0;
+    const carb = parseFloat(document.getElementById('ingCarb').value) || 0;
+    const pro = parseFloat(document.getElementById('ingPro').value) || 0;
+    const fat = parseFloat(document.getElementById('ingFat').value) || 0;
 
     if (!name || !amount || !unit || isNaN(cost)) {
       return alert("Please fill out Name, Amount, Unit, and Cost.");
@@ -273,7 +296,10 @@ const app = {
       category: category,
       subcategory: subcategory,
       notes: notes,
-      calories_per_unit: 0, carbs_per_unit: 0, protein_per_unit: 0, fat_per_unit: 0
+      calories_per_unit: cal / amount,
+      carbs_per_unit: carb / amount,
+      protein_per_unit: pro / amount,
+      fat_per_unit: fat / amount
     };
 
     const { error } = await client.from('ingredients').insert(newIng);
@@ -288,6 +314,13 @@ const app = {
       document.getElementById('ingCategory').value = '';
       document.getElementById('ingSubcategory').value = '';
       document.getElementById('ingNotes').value = '';
+      
+      document.getElementById('ingCal').value = '';
+      document.getElementById('ingCarb').value = '';
+      document.getElementById('ingPro').value = '';
+      document.getElementById('ingFat').value = '';
+      this.calcMacrosUI();
+
       this.loadIngredientsView();
       this.showToast("Ingredient Added to Database");
     }
@@ -304,7 +337,7 @@ const app = {
 
   createRecipeCardHTML: function(recipe) {
     const isOwner = this.currentUser && recipe.author_id === this.currentUser.id;
-    const ownerBadge = isOwner ? `<div style="position:absolute; top:10px; right:10px; background:var(--accent-cyan); color:white; font-size:10px; font-weight:700; padding:4px 8px; border-radius:4px;">Yours</div>` : '';
+    const ownerBadge = isOwner ? `<div style="position:absolute; top:15px; right:15px; background:var(--accent-cyan); color:white; font-size:0.8rem; font-weight:800; padding:6px 12px; border-radius:12px; box-shadow: 0 2px 0 0 #008b92;">Yours</div>` : '';
 
     const rawImg = (recipe.image_url || '').trim().toLowerCase();
     const isValidImg = rawImg.length > 5 && rawImg.startsWith('http');
@@ -327,12 +360,12 @@ const app = {
         </div>
         <div class="card-content">
           <h3 class="card-title" style="margin-bottom: 5px;">${recipe.name}</h3>
-          <div style="font-size: 0.75rem; color: var(--text-gray); font-weight: 500; margin-bottom: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          <div style="font-size: 0.85rem; color: var(--text-gray); font-weight: 700; margin-bottom: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             ${tagsDisplay}
           </div>
           <div class="card-meta">
             <span>🕒 ${totalTime} MIN</span>
-            <span style="color: var(--text-dark); font-weight: 700;">₱${costPerServing}</span>
+            <span style="color: var(--text-dark); font-weight: 900; font-size: 1.1rem;">₱${costPerServing}</span>
           </div>
         </div>
       </div>
@@ -356,7 +389,7 @@ const app = {
         return `
           <div class="gallery-card" style="background-image: url('${bgImage}')" onclick="app.openDetail('${r.id}')">
             <div class="gallery-card-overlay">
-              <h3>${r.name}</h3>
+              <h3 style="font-weight: 900;">${r.name}</h3>
             </div>
           </div>
         `;
@@ -420,7 +453,7 @@ const app = {
     });
 
     if (filtered.length === 0) {
-      grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; font-weight: 700; color: #666;">No recipes found.</div>';
+      grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; font-weight: 800; color: #666; font-size: 1.2rem; padding: 40px;">No recipes found.</div>';
       return;
     }
 
@@ -434,7 +467,7 @@ const app = {
       .replace(/__(.*?)__/g, '<u>$1</u>')                           // Underline
       .replace(/\*(.*?)\*/g, '<em>$1</em>')                         // Italic
       .replace(/~~(.*?)~~/g, '<del>$1</del>')                       // Strikethrough
-      .replace(/`([^`]+)`/g, '<code style="background:#e2e8f0; padding:2px 5px; border-radius:4px; font-family:monospace; color:var(--pop-orange); font-size:0.85em;">$1</code>') // Code
+      .replace(/`([^`]+)`/g, '<code style="background:#e2e8f0; padding:4px 8px; border-radius:8px; font-family:monospace; color:var(--pop-orange); font-size:0.9em; font-weight:bold;">$1</code>') // Code
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--accent-cyan); text-decoration:underline;">$1</a>'); // Links
 
     const lines = html.split('\n');
@@ -452,27 +485,27 @@ const app = {
       const subtextMatch = trimmed.match(/^-#\s+(.*)/); 
       
       if (h1Match) {
-        formattedHTML += `<h1 style="color: var(--pop-orange); margin: 20px 0 8px 0; font-size: 2.2rem;">${h1Match[1]}</h1>`;
+        formattedHTML += `<h1 style="color: var(--pop-orange); margin: 20px 0 8px 0; font-size: 2.4rem;">${h1Match[1]}</h1>`;
       } else if (h2Match) {
-        formattedHTML += `<h2 style="color: var(--pop-orange); margin: 18px 0 8px 0; font-size: 1.5rem; border-bottom: 2px solid var(--border-color); padding-bottom: 4px;">${h2Match[1]}</h2>`;
+        formattedHTML += `<h2 style="color: var(--pop-orange); margin: 18px 0 8px 0; font-size: 1.8rem; border-bottom: 3px solid var(--border-color); padding-bottom: 6px;">${h2Match[1]}</h2>`;
       } else if (h3Match) {
-        formattedHTML += `<h3 style="color: var(--pop-orange); margin: 12px 0 4px 0; font-size: 1.1rem;">${h3Match[1]}</h3>`;
+        formattedHTML += `<h3 style="color: var(--pop-orange); margin: 12px 0 4px 0; font-size: 1.3rem;">${h3Match[1]}</h3>`;
       } else if (olMatch) {
         formattedHTML += `
-          <div style="display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start;">
-            <span style="font-weight: 700; color: var(--pop-orange); font-size: 1.05rem; line-height: 1.4;">${olMatch[1]}</span>
-            <span style="flex: 1; line-height: 1.4;">${olMatch[2]}</span>
+          <div style="display: flex; gap: 12px; margin-bottom: 8px; align-items: flex-start;">
+            <span style="font-weight: 900; color: var(--pop-orange); font-size: 1.15rem; line-height: 1.5;">${olMatch[1]}</span>
+            <span style="flex: 1; line-height: 1.5;">${olMatch[2]}</span>
           </div>`;
       } else if (ulMatch) {
         formattedHTML += `
-          <div style="display: flex; gap: 10px; margin-bottom: 6px; align-items: flex-start;">
-            <span style="font-weight: 700; color: var(--pop-orange); font-size: 1.2rem; line-height: 1.1;">•</span>
-            <span style="flex: 1; line-height: 1.4;">${ulMatch[1]}</span>
+          <div style="display: flex; gap: 12px; margin-bottom: 8px; align-items: flex-start;">
+            <span style="font-weight: 900; color: var(--pop-orange); font-size: 1.4rem; line-height: 1.1;">•</span>
+            <span style="flex: 1; line-height: 1.5;">${ulMatch[1]}</span>
           </div>`;
       } else if (subtextMatch) {
-        formattedHTML += `<p style="font-size: 0.8rem; color: var(--text-gray); margin-bottom: 6px; line-height: 1.4; opacity: 0.8;">${subtextMatch[1]}</p>`;
+        formattedHTML += `<p style="font-size: 0.95rem; color: var(--text-gray); margin-bottom: 8px; line-height: 1.5; font-weight: 700;">${subtextMatch[1]}</p>`;
       } else {
-        formattedHTML += `<p style="margin-bottom: 8px; line-height: 1.5;">${trimmed}</p>`;
+        formattedHTML += `<p style="margin-bottom: 10px; line-height: 1.6;">${trimmed}</p>`;
       }
     });
     
@@ -650,7 +683,7 @@ const app = {
         if (!trimmed) return '';
         
         if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-          return `<li style="list-style: none; color: var(--pop-orange); font-weight: 700; margin-top: 15px; margin-bottom: 5px; border-bottom: 2px solid var(--border-color);">${trimmed.slice(1, -1)}</li>`;
+          return `<li style="list-style: none; color: var(--pop-orange); font-weight: 900; margin-top: 20px; margin-bottom: 8px; border-bottom: 3px solid var(--border-color); padding-bottom: 4px; font-size: 1.1rem;">${trimmed.slice(1, -1)}</li>`;
         }
         
         const match = trimmed.match(/^([\d.]+)\s*([a-zA-Z]+)?\s+(.*)$/);
@@ -668,18 +701,27 @@ const app = {
           }
           const lineCost = (scaledQty * unitCost).toFixed(2);
           
-          return `<li style="display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
+          return `<li style="display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 0; border-bottom: 2px dashed var(--border-color);">
                     <div style="display: flex; gap: 15px; flex: 1;">
-                      <span style="color: var(--accent-cyan); font-weight: 700; font-size: 1.05rem; min-width: 80px; text-align: right;">${scaledQty} ${unit}</span>
-                      <span style="font-weight: 500; color: var(--text-dark);">${name}</span>
+                      <span style="color: var(--accent-cyan); font-weight: 900; font-size: 1.1rem; min-width: 80px; text-align: right;">${scaledQty} ${unit}</span>
+                      <span style="font-weight: 700; color: var(--text-dark); font-size: 1.05rem;">${name}</span>
                     </div>
-                    <span style="font-weight: 700; color: var(--text-gray); font-size: 0.9rem; min-width: 70px; text-align: right;">₱${lineCost}</span>
+                    <span style="font-weight: 800; color: var(--text-gray); font-size: 1rem; min-width: 70px; text-align: right;">₱${lineCost}</span>
                   </li>`;
         }
-        return `<li style="padding: 10px 0;">${trimmed}</li>`;
+        return `<li style="padding: 12px 0; font-weight: 600; font-size: 1.05rem;">${trimmed}</li>`;
       }).join('');
     }
     document.getElementById('detailIngredients').innerHTML = ingredientsHTML || '<li>No ingredients specified.</li>';
+  },
+
+  // NEW: Intercept copy link click to prevent card flip
+  copyShareLink: function(event) {
+    event.stopPropagation();
+    const link = document.getElementById('shareCardLinkText').textContent;
+    navigator.clipboard.writeText(link).then(() => {
+      this.showToast("Link copied to clipboard!");
+    });
   },
 
   openShareCard: function() {
@@ -712,10 +754,6 @@ const app = {
     modal.classList.remove('hidden');
   },
 
-  // ----------------------------------------------------------------------
-  // UPGRADED: SHOPPING LIST (Optimistic UI + Background Sync)
-  // ----------------------------------------------------------------------
-
   fetchShoppingList: async function() {
     if (this.currentUser) {
       const { data, error } = await client
@@ -724,7 +762,6 @@ const app = {
         .order('created_at', { ascending: true });
 
       if (!error && data) {
-        // Map database IDs so our local array knows how to target them later
         this.shoppingList = data.map(item => ({...item, db_id: item.id}));
       }
     } else {
@@ -752,7 +789,6 @@ const app = {
       const trimmed = line.trim();
       if (!trimmed || (trimmed.startsWith('[') && trimmed.endsWith(']'))) return;
       
-      // Upgraded regex that captures numbers, decimals, OR fractions (like 1/2)
       const match = trimmed.match(/^([\d.\/]+)\s*([a-zA-Z]+)?\s+(.*)$/);
       
       let qty = 1;
@@ -786,6 +822,18 @@ const app = {
     }
   },
 
+  // NEW: Lock Unit Field automatically on matching ingredient
+  checkManualShopUnit: function(value) {
+    const unitInput = document.getElementById('manualShopUnit');
+    const found = this.ingredientsRegistry.find(i => i.name.toLowerCase() === value.trim().toLowerCase());
+    if (found) {
+      unitInput.value = found.unit;
+      unitInput.setAttribute('disabled', 'true');
+    } else {
+      unitInput.removeAttribute('disabled');
+    }
+  },
+
   addManualShoppingItem: function() {
     const nameInput = document.getElementById('manualShopName');
     const qtyInput = document.getElementById('manualShopQty');
@@ -809,6 +857,7 @@ const app = {
     nameInput.value = '';
     qtyInput.value = '1';
     unitInput.value = '';
+    unitInput.removeAttribute('disabled'); // Unlock unit input
   },
 
   upsertShoppingItem: function(name, qty, unit, costPerUnit) {
@@ -819,7 +868,6 @@ const app = {
       item = this.shoppingList[existingIndex];
       item.qty = parseFloat((item.qty + qty).toFixed(2));
     } else {
-      // Provide a temporary string ID for rendering, wait for DB to give real UUID
       item = {
         id: Date.now() + Math.random().toString(), 
         name: name,
@@ -832,12 +880,10 @@ const app = {
       this.shoppingList.push(item);
     }
 
-    // Force UI refresh instantly
     if (document.getElementById('view-shopping').classList.contains('active')) {
       this.renderShoppingList();
     }
 
-    // Background Database Sync
     if (this.currentUser) {
       if (existingIndex !== -1 && item.db_id) {
         client.from('shopping_list').update({ qty: item.qty }).eq('id', item.db_id).then();
@@ -851,7 +897,7 @@ const app = {
           actual_cost: item.actual_cost,
           checked: item.checked
         }).select().single().then(({ data, error }) => {
-          if (data) item.db_id = data.id; // Map supabase UUID to local item once it replies
+          if (data) item.db_id = data.id; 
         });
       }
     } else {
@@ -873,7 +919,7 @@ const app = {
       }
     }
 
-    this.renderShoppingList(); // Optimistic update
+    this.renderShoppingList(); 
 
     if (this.currentUser && item.db_id) {
       const updateData = {};
@@ -931,7 +977,7 @@ const app = {
     if (!container) return;
 
     if (this.shoppingList.length === 0) {
-      container.innerHTML = '<div style="text-align: center; color: var(--text-gray); font-weight: 700; margin-top: 30px;">Your shopping list is empty. Add items from a recipe or enter them manually above.</div>';
+      container.innerHTML = '<div style="text-align: center; color: var(--text-gray); font-weight: 800; font-size: 1.1rem; margin-top: 40px;">Your shopping list is empty.<br><span style="font-size: 0.9rem; font-weight: 600;">Add items from a recipe or enter them manually above.</span></div>';
       document.getElementById('shoppingEstTotal').textContent = '₱0.00';
       document.getElementById('shoppingActTotal').textContent = '₱0.00';
       return;
@@ -957,14 +1003,14 @@ const app = {
           <div class="shopping-item-qty">
             <input type="number" value="${item.qty}" step="any" onchange="app.updateShoppingItem(${index}, 'qty', this.value)">
           </div>
-          <div class="shopping-item-unit" style="display: flex; align-items: center; color: var(--text-gray); font-size: 0.95rem; font-weight: 600;">
+          <div class="shopping-item-unit" style="display: flex; align-items: center; color: var(--text-gray); font-size: 1rem; font-weight: 800;">
             ${item.unit}
           </div>
           <div class="shopping-item-est" style="display: flex; align-items: center;">₱${estLineCost}</div>
           <div class="shopping-item-actual">
             <input type="number" value="${item.actual_cost || ''}" placeholder="Actual Price" step="any" onchange="app.updateShoppingItem(${index}, 'actual_cost', this.value)">
           </div>
-          <button class="btn-secondary" style="padding: 5px 10px; color: red; border-color: red; font-size: 0.7rem;" onclick="app.removeShoppingItem(${index})">X</button>
+          <button class="btn-danger" style="padding: 10px; font-size: 0.85rem;" onclick="app.removeShoppingItem(${index})">X</button>
         </div>
       `;
     }).join('');
@@ -986,7 +1032,7 @@ const app = {
     if (error) return console.error(error);
     
     if (reviews.length === 0) {
-      reviewsList.innerHTML = '<div style="color: var(--text-gray); font-style: italic;">No reviews yet. Be the first!</div>';
+      reviewsList.innerHTML = '<div style="color: var(--text-gray); font-weight: 700;">No reviews yet. Be the first!</div>';
       return;
     }
 
@@ -995,10 +1041,10 @@ const app = {
       return `
         <div class="review-card">
           <div class="review-header">
-            <span style="color: var(--accent-cyan);">${rev.author_name}</span>
+            <span style="color: var(--accent-cyan); font-size: 1.1rem;">${rev.author_name}</span>
             <span class="star-rating">${stars}</span>
           </div>
-          <div style="font-size: 0.95rem; line-height: 1.5;">${rev.comment || ''}</div>
+          <div style="font-size: 1rem; line-height: 1.6; font-weight: 600;">${rev.comment || ''}</div>
         </div>
       `;
     }).join('');
@@ -1108,23 +1154,25 @@ const app = {
     this.editIngredientsList.forEach((item, index) => {
       const row = document.createElement('div');
       row.style.display = 'flex';
-      row.style.gap = '10px';
+      row.style.gap = '15px';
       row.style.alignItems = 'center';
-      row.style.background = 'var(--bg-white)';
-      row.style.padding = '5px';
-      row.style.borderRadius = '8px';
+      row.style.background = 'white';
+      row.style.padding = '8px';
+      row.style.borderRadius = '20px';
+      row.style.border = '2px solid var(--border-color)';
+      row.style.boxShadow = '0 4px 0 0 var(--border-color)';
 
       if (item.type === 'divider') {
         row.innerHTML = `
-          <input type="text" value="${item.name}" oninput="app.editIngredientsList[${index}].name = this.value" placeholder="Section Name (e.g. Marinade)" style="flex: 1; padding: 10px; border: 2px solid var(--pop-orange); color: var(--pop-orange); font-weight: 700; outline: none; border-radius: 4px;">
-          <button class="btn-secondary" onclick="app.removeEditorIngredient(${index})" style="padding: 10px 15px; color: red; border-color: red; font-weight: 700;">X</button>
+          <input type="text" value="${item.name}" oninput="app.editIngredientsList[${index}].name = this.value" placeholder="Section Name (e.g. Marinade)" style="flex: 1; border-color: var(--pop-orange); color: var(--pop-orange); font-weight: 800;">
+          <button class="btn-danger" onclick="app.removeEditorIngredient(${index})">X</button>
         `;
       } else {
         row.innerHTML = `
-          <input type="number" value="${item.qty}" oninput="app.editIngredientsList[${index}].qty = parseFloat(this.value) || 0" style="width: 80px; padding: 10px; border: 2px solid var(--border-color); outline: none; border-radius: 4px;" step="any">
-          <span style="width: 50px; text-align: center; font-weight: 700; color: var(--accent-cyan);">${item.unit}</span>
-          <input list="ingredientDatalist" value="${item.name}" onchange="app.updateEditorIngredientUnit(${index}, this.value)" oninput="app.editIngredientsList[${index}].name = this.value" placeholder="Type ingredient..." style="flex: 1; padding: 10px; border: 2px solid var(--border-color); outline: none; border-radius: 4px;">
-          <button class="btn-secondary" onclick="app.removeEditorIngredient(${index})" style="padding: 10px 15px; color: red; border-color: red; font-weight: 700;">X</button>
+          <input type="number" value="${item.qty}" oninput="app.editIngredientsList[${index}].qty = parseFloat(this.value) || 0" style="width: 100px;" step="any">
+          <span style="width: 50px; text-align: center; font-weight: 800; color: var(--accent-cyan); font-size: 1.1rem;">${item.unit}</span>
+          <input list="ingredientDatalist" value="${item.name}" onchange="app.updateEditorIngredientUnit(${index}, this.value)" oninput="app.editIngredientsList[${index}].name = this.value" placeholder="Type ingredient..." style="flex: 1;">
+          <button class="btn-danger" onclick="app.removeEditorIngredient(${index})">X</button>
         `;
       }
       container.appendChild(row);
@@ -1145,9 +1193,7 @@ const app = {
     if (!delBtn) {
       delBtn = document.createElement('button');
       delBtn.id = 'editorDeleteBtn';
-      delBtn.className = 'btn-secondary';
-      delBtn.style.borderColor = 'red';
-      delBtn.style.color = 'red';
+      delBtn.className = 'btn-danger';
       delBtn.textContent = 'Delete Recipe';
       document.querySelector('.editor-actions').prepend(delBtn);
     }
