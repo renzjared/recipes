@@ -9,6 +9,10 @@
 </head>
 <body>
 
+  <audio id="sfx-pop" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3" preload="auto"></audio>
+  <audio id="sfx-success" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3" preload="auto"></audio>
+  <audio id="sfx-star" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3" preload="auto"></audio>
+
   <header class="top-nav">
     <div style="display: flex; gap: 30px; align-items: center; flex-wrap: wrap;">
       <div class="logo" onclick="app.showView('view-home')">recipes</div>
@@ -23,8 +27,8 @@
 
     <div class="header-actions" style="display: flex; gap: 15px; align-items: center;">
       <div id="userProfile" style="display: none; align-items: center; gap: 10px; font-weight: 800; font-size: 0.9rem;">
-        <img id="userAvatar" src="" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--text-dark);">
-        <span id="userName">User</span>
+        <img id="userAvatar" src="" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--text-dark); cursor: pointer;" onclick="app.loadProfile(app.currentUser.id)" title="View Profile">
+        <span id="userName" style="cursor: pointer;" onclick="app.loadProfile(app.currentUser.id)">User</span>
         <button class="btn-secondary" style="padding: 8px 16px; font-size: 0.8rem;" onclick="app.logout()">Logout</button>
         <button class="btn-primary" onclick="app.openEditor()">+ New Recipe</button>
       </div>
@@ -37,7 +41,6 @@
 
 <main id="view-home" class="view active" style="padding: 0; max-width: 100%;">
     
-    <!-- REFRESHED HERO SECTION -->
     <section class="hero-section" style="border-radius: 0 0 40px 40px; box-shadow: 0 8px 0 0 rgba(0,0,0,0.05);">
       <div class="hero-content">
         <h1 style="font-size: 4.5rem; letter-spacing: -2px;">i like <span style="color: #ffe8d6;">food.</span></h1>
@@ -47,12 +50,10 @@
       
       <div class="gallery-wrapper">
         <div class="gallery-track" id="homeGallery">
-          <!-- JS Populates Carousel Here -->
         </div>
       </div>
     </section>
 
-    <!-- FRIENDLY MARKETING ROWS -->
     <section class="marketing-section">
       <div class="marketing-row">
         <div class="marketing-icon">🛒</div>
@@ -79,22 +80,41 @@
       </div>
     </section>
 
-    <!-- DYNAMIC FEATURED CATEGORIES -->
     <section style="background: var(--bg-white); padding: 80px 40px; border-top: 6px dashed var(--border-color); border-radius: 40px 40px 0 0;">
       <div style="max-width: 1200px; margin: 0 auto;" id="dynamicHomeCategories">
-        <!-- JS Autogenerates Sections Here (Cheap Eats, Quick Bites, etc.) -->
       </div>
     </section>
 
   </main>
 
   <main id="view-dashboard" class="view">
-    <div class="toolbar">
-      <input type="text" id="searchInput" placeholder="Search menu...">
+    <div class="toolbar" style="flex-wrap: wrap;">
+      <input type="text" id="searchInput" placeholder="Search menus, tags, authors..." oninput="app.currentSearch = this.value; app.renderDashboard()" style="flex: 1; min-width: 250px;">
       <div class="filters" id="categoryNav">
         <button class="filter-btn active" data-category="All">All</button>
       </div>
+      <button class="btn-secondary" style="border-radius: 999px; font-size: 0.9rem; padding: 10px 20px;" onclick="document.getElementById('pantryFilterSection').classList.toggle('hidden')">🪄 What's in my Pantry?</button>
     </div>
+
+    <div id="pantryFilterSection" class="hidden" style="margin-bottom: 30px; padding: 30px; background: var(--bg-white); border-radius: 32px; border: 4px solid var(--border-color); box-shadow: 0 10px 0 0 var(--border-color);">
+       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+         <div>
+           <h3 style="color: var(--accent-cyan); font-size: 1.8rem;">What's in my Pantry?</h3>
+           <p style="color: var(--text-gray); font-weight: 700; margin-top: 5px;">Select ingredients you have. We'll find recipes you can make!</p>
+         </div>
+         <div style="display: flex; gap: 10px;">
+           <button class="btn-secondary" onclick="app.pantrySelectAllGlobal()">Select All</button>
+           <button class="btn-secondary" onclick="app.pantryClearGlobal()">Clear All</button>
+         </div>
+       </div>
+       
+       <div id="pantryFilterList" style="display: flex; flex-direction: column; gap: 20px;"></div>
+       
+       <div style="margin-top: 30px; display: flex; justify-content: flex-end; border-top: 3px dashed var(--border-color); padding-top: 25px;">
+         <button class="btn-primary" style="font-size: 1.2rem; padding: 16px 35px; border-radius: 999px;" onclick="app.applyPantryFilter()">Show Matching Recipes</button>
+       </div>
+    </div>
+
     <div class="recipe-grid" id="recipeGrid">
       </div>
   </main>
@@ -103,6 +123,7 @@
     <div class="page-header" style="display: flex; justify-content: space-between;">
       <button class="btn-secondary" onclick="app.showView('view-dashboard')">← Back to Menu</button>
       <div style="display: flex; gap: 10px;">
+        <button id="btnFavorite" class="btn-secondary" onclick="app.toggleFavorite()" style="border-color: #f59e0b; color: #f59e0b; box-shadow: 0 4px 0 0 #f59e0b;">⭐ Save</button>
         <button class="btn-secondary" onclick="app.openShareCard()" style="border-color: var(--accent-cyan); color: var(--accent-cyan); box-shadow: 0 4px 0 0 var(--accent-cyan);">🔗 Share</button>
         <button class="btn-secondary" onclick="app.addRecipeToShoppingList()" style="border-color: #10B981; color: #10B981; box-shadow: 0 4px 0 0 #10B981;">🛒 Add to List</button>
         <button class="btn-secondary" onclick="window.print()" style="border-color: var(--text-dark); box-shadow: 0 4px 0 0 var(--text-dark);">🖨️ Print PDF</button>
@@ -116,7 +137,7 @@
       <div class="detail-header">
         <h1 id="detailTitle">Recipe Name</h1>
         
-        <div id="detailAuthorInfo" style="display: flex; align-items: center; gap: 10px; margin-top: 15px; margin-bottom: 5px;">
+        <div id="detailAuthorInfo" style="display: flex; align-items: center; gap: 10px; margin-top: 15px; margin-bottom: 5px; cursor: pointer;">
            <img id="detailAuthorAvatar" src="" style="width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--border-color);">
            <span style="font-weight: 700; color: var(--text-gray); font-size: 1rem;">Created by <span id="detailAuthorName" style="color: var(--text-dark); font-weight: 900;">Chef</span></span>
         </div>
@@ -185,13 +206,19 @@
         
         <div id="reviewFormContainer" class="review-form" style="display: none;">
           <h3 style="color: var(--accent-cyan); font-size: 1.1rem; font-weight: 800;">Leave a Review</h3>
-          <select id="reviewRating">
-            <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
-            <option value="4">⭐⭐⭐⭐ (4/5)</option>
-            <option value="3">⭐⭐⭐ (3/5)</option>
-            <option value="2">⭐⭐ (2/5)</option>
-            <option value="1">⭐ (1/5)</option>
-          </select>
+          
+          <div class="custom-dropdown" id="reviewRatingDropdown" onclick="this.classList.toggle('open')">
+            <div class="dropdown-selected" id="reviewRatingDisplay">⭐⭐⭐⭐⭐ (5/5)</div>
+            <div class="dropdown-options">
+              <div onclick="app.selectDropdown('reviewRating', '5', '⭐⭐⭐⭐⭐ (5/5)')">⭐⭐⭐⭐⭐ (5/5)</div>
+              <div onclick="app.selectDropdown('reviewRating', '4', '⭐⭐⭐⭐ (4/5)')">⭐⭐⭐⭐ (4/5)</div>
+              <div onclick="app.selectDropdown('reviewRating', '3', '⭐⭐⭐ (3/5)')">⭐⭐⭐ (3/5)</div>
+              <div onclick="app.selectDropdown('reviewRating', '2', '⭐⭐ (2/5)')">⭐⭐ (2/5)</div>
+              <div onclick="app.selectDropdown('reviewRating', '1', '⭐ (1/5)')">⭐ (1/5)</div>
+            </div>
+          </div>
+          <input type="hidden" id="reviewRating" value="5">
+
           <textarea id="reviewText" rows="3" placeholder="What did you think of this recipe?"></textarea>
           <button class="btn-primary" style="width: 200px;" onclick="app.submitReview()">Post Review</button>
         </div>
@@ -204,6 +231,56 @@
     </div>
   </main>
   
+  <main id="view-profile" class="view">
+    <div class="profile-header">
+      <img id="profileAvatar" class="profile-avatar" src="">
+      <div class="profile-info">
+        <h1 id="profileName" class="profile-name">Chef</h1>
+        <div id="profileBio" class="profile-bio">I love cooking!</div>
+        <div class="xp-container">
+          <div id="profileXpFill" class="xp-fill" style="width: 0%;"></div>
+          <div class="xp-text">Level <span id="profileLevel">1</span> (<span id="profileXpText">0 XP</span>)</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background: var(--bg-white); padding: 40px; border-radius: 32px; border: 4px solid var(--border-color); box-shadow: 0 10px 0 0 var(--border-color);">
+      <div class="profile-tabs">
+        <button class="tab-btn active" onclick="app.switchProfileTab('recipes', this)">Authored Recipes</button>
+        <button class="tab-btn" onclick="app.switchProfileTab('favorites', this)">Favorites Catalog</button>
+        <button class="tab-btn" onclick="app.switchProfileTab('planner', this)">Weekly Plan</button>
+        <button class="tab-btn" onclick="app.switchProfileTab('badges', this)">Badges</button>
+      </div>
+
+      <div id="tab-recipes" class="profile-tab-content">
+        <div class="recipe-grid" id="profileRecipesGrid"></div>
+      </div>
+
+      <div id="tab-favorites" class="profile-tab-content hidden">
+        <div class="recipe-grid" id="profileFavoritesGrid"></div>
+      </div>
+
+      <div id="tab-planner" class="profile-tab-content hidden">
+        <p style="color: var(--text-gray); font-weight: 800; margin-bottom: 20px; font-size: 1.1rem;">Drag recipes from your Favorites list (below) into your weekly schedule!</p>
+        <div class="planner-grid">
+          <div class="day-column"><div class="day-header">Mon</div><div class="drop-zone" data-day="Mon" ondragover="app.handleDragOver(event)" ondragleave="app.handleDragLeave(event)" ondrop="app.handleDrop(event)"></div></div>
+          <div class="day-column"><div class="day-header">Tue</div><div class="drop-zone" data-day="Tue" ondragover="app.handleDragOver(event)" ondragleave="app.handleDragLeave(event)" ondrop="app.handleDrop(event)"></div></div>
+          <div class="day-column"><div class="day-header">Wed</div><div class="drop-zone" data-day="Wed" ondragover="app.handleDragOver(event)" ondragleave="app.handleDragLeave(event)" ondrop="app.handleDrop(event)"></div></div>
+          <div class="day-column"><div class="day-header">Thu</div><div class="drop-zone" data-day="Thu" ondragover="app.handleDragOver(event)" ondragleave="app.handleDragLeave(event)" ondrop="app.handleDrop(event)"></div></div>
+          <div class="day-column"><div class="day-header">Fri</div><div class="drop-zone" data-day="Fri" ondragover="app.handleDragOver(event)" ondragleave="app.handleDragLeave(event)" ondrop="app.handleDrop(event)"></div></div>
+          <div class="day-column"><div class="day-header">Sat</div><div class="drop-zone" data-day="Sat" ondragover="app.handleDragOver(event)" ondragleave="app.handleDragLeave(event)" ondrop="app.handleDrop(event)"></div></div>
+          <div class="day-column"><div class="day-header">Sun</div><div class="drop-zone" data-day="Sun" ondragover="app.handleDragOver(event)" ondragleave="app.handleDragLeave(event)" ondrop="app.handleDrop(event)"></div></div>
+        </div>
+        <h3 style="margin-top: 30px; margin-bottom: 15px; color: var(--accent-cyan);">Your Favorites</h3>
+        <div id="plannerFavoritesList" style="display: flex; gap: 15px; flex-wrap: wrap; padding: 20px; background: var(--bg-light); border-radius: 16px; border: 2px solid var(--border-color);"></div>
+      </div>
+
+      <div id="tab-badges" class="profile-tab-content hidden">
+        <div class="badges-grid" id="profileBadgesGrid"></div>
+      </div>
+    </div>
+  </main>
+
   <main id="view-editor" class="view">
     <div class="page-header">
       <h1 id="editorTitle" class="page-title">New Recipe</h1>
@@ -223,8 +300,7 @@
         </div>
         <div class="form-group flex-1">
           <label>Tags (Comma Separated)</label>
-          <input type="text" id="editCategory" list="categoryDatalist" placeholder="e.g. Main, Chicken, Fried">
-          <datalist id="categoryDatalist"></datalist>
+          <input type="text" id="editCategory" placeholder="e.g. Main, Chicken, Fried">
         </div>
       </div>
 
@@ -260,7 +336,6 @@
           <button class="btn-secondary" onclick="app.addEditorIngredient('ingredient')">+ Add Ingredient</button>
           <button class="btn-secondary" onclick="app.addEditorIngredient('divider')" style="border-color: var(--pop-orange); color: var(--pop-orange); box-shadow: 0 4px 0 0 var(--pop-orange);">+ Add Section [Header]</button>
         </div>
-        <datalist id="ingredientDatalist"></datalist>
       </div>
 
       <div class="form-group">
@@ -299,25 +374,34 @@
         <div class="form-row">
           <div class="form-group flex-2">
             <label>Ingredient Name</label>
-            <input type="text" id="ingName" placeholder="e.g. Vanilla Extract">
+            <div class="autocomplete-wrapper" style="width: 100%;">
+              <input type="text" id="ingName" placeholder="e.g. Vanilla Extract" oninput="app.filterAutocomplete(this)" onfocus="app.filterAutocomplete(this)" onblur="app.closeAutocomplete(this)" autocomplete="off" style="width: 100%;">
+              <div class="autocomplete-dropdown"></div>
+            </div>
           </div>
           <div class="form-group flex-1">
             <label>Store Amount & Unit</label>
             <div style="display: flex; gap: 10px;">
               <input type="number" id="ingAmount" placeholder="Qty" style="width: 50%;" oninput="app.calcMacrosUI()">
-              <select id="ingUnit" style="width: 50%;" onchange="app.calcMacrosUI()">
-                <option value="g">g</option>
-                <option value="kg">kg</option>
-                <option value="lb">lb</option>
-                <option value="oz">oz</option>
-                <option value="mL">mL</option>
-                <option value="L">L</option>
-                <option value="piece">piece</option>
-                <option value="bundle">bundle</option>
-                <option value="pack">pack</option>
-                <option value="bag">bag</option>
-                <option value="box">box</option>
-              </select>
+              
+              <div class="custom-dropdown" id="ingUnitDropdown" onclick="this.classList.toggle('open')" style="width: 50%;">
+                <div class="dropdown-selected" id="ingUnitDisplay">g</div>
+                <div class="dropdown-options">
+                  <div onclick="app.selectDropdown('ingUnit', 'g')">g</div>
+                  <div onclick="app.selectDropdown('ingUnit', 'kg')">kg</div>
+                  <div onclick="app.selectDropdown('ingUnit', 'lb')">lb</div>
+                  <div onclick="app.selectDropdown('ingUnit', 'oz')">oz</div>
+                  <div onclick="app.selectDropdown('ingUnit', 'mL')">mL</div>
+                  <div onclick="app.selectDropdown('ingUnit', 'L')">L</div>
+                  <div onclick="app.selectDropdown('ingUnit', 'piece')">piece</div>
+                  <div onclick="app.selectDropdown('ingUnit', 'bundle')">bundle</div>
+                  <div onclick="app.selectDropdown('ingUnit', 'pack')">pack</div>
+                  <div onclick="app.selectDropdown('ingUnit', 'bag')">bag</div>
+                  <div onclick="app.selectDropdown('ingUnit', 'box')">box</div>
+                </div>
+              </div>
+              <input type="hidden" id="ingUnit" value="g">
+
             </div>
           </div>
           <div class="form-group flex-1">
@@ -341,7 +425,6 @@
           </div>
         </div>
 
-        <!-- NEW MACROS SECTION -->
         <h4 style="margin: 10px 0 20px 0; color: var(--text-dark); font-size: 1.2rem;">Store Amount Macros</h4>
         <div class="form-row" style="background: var(--bg-light); padding: 20px; border-radius: 16px; border: 2px solid var(--border-color);">
           <div class="form-group flex-1">
@@ -407,8 +490,10 @@
     <div class="editor-form" style="margin-bottom: 35px; border-color: var(--accent-cyan); box-shadow: 0 8px 0 0 var(--accent-cyan);">
       <h3 style="margin-bottom: 20px; color: var(--accent-cyan); font-size: 1.4rem;">+ Manual Entry</h3>
       <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-        <!-- UPDATED: Added oninput listener to auto-lock the unit field -->
-        <input type="text" id="manualShopName" list="ingredientDatalist" placeholder="Item Name" style="flex: 2;" oninput="app.checkManualShopUnit(this.value)">
+        <div class="autocomplete-wrapper" style="flex: 2;">
+          <input type="text" id="manualShopName" placeholder="Item Name" oninput="app.filterAutocomplete(this); app.checkManualShopUnit(this.value)" onfocus="app.filterAutocomplete(this)" onblur="app.closeAutocomplete(this)" autocomplete="off" style="width: 100%;">
+          <div class="autocomplete-dropdown"></div>
+        </div>
         <input type="number" id="manualShopQty" value="1" step="any" style="flex: 1;">
         <input type="text" id="manualShopUnit" placeholder="Unit" style="flex: 1;">
         <button class="btn-primary" onclick="app.addManualShoppingItem()">Add Item</button>
@@ -435,7 +520,6 @@
     </div>
   </main>
 
-  <!-- SHARE CARD MODAL -->
   <div id="shareCardModal" class="modal-overlay hidden" onclick="if(event.target===this) this.classList.add('hidden')">
     <div class="share-card-container">
       <button class="close-modal-btn" onclick="document.getElementById('shareCardModal').classList.add('hidden')">×</button>
@@ -453,7 +537,6 @@
             </div>
             <div class="back">
               <img id="shareCardQR" src="" alt="QR Code">
-              <!-- UPDATED: Copyable link with stopPropagation -->
               <p id="shareCardLinkText" onclick="app.copyShareLink(event)" title="Click to copy link!"></p>
               <div class="flip-prompt">Tap to flip back</div>
             </div>
@@ -476,9 +559,18 @@
     </div>
   </div>
 
+  <div id="customModalOverlay" class="modal-overlay hidden" style="z-index: 2000;">
+    <div class="custom-modal">
+      <h2 id="customModalTitle" style="color: var(--text-dark); font-size: 1.8rem; margin-bottom: 10px;">Notice</h2>
+      <p id="customModalMessage" style="color: var(--text-gray); font-size: 1.1rem; font-weight: 700; margin-bottom: 30px;"></p>
+      <div id="customModalActions" style="display: flex; gap: 15px; justify-content: center;">
+      </div>
+    </div>
+  </div>
+
   <div id="toastContainer" class="toast-container"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=4.1"></script>
 </body>
 </html>

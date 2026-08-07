@@ -8,6 +8,8 @@ const app = {
   recipes: [],
   ingredientsRegistry: [], 
   shoppingList: [], 
+  pantrySelection: [], 
+  tempPantrySelection: [],
   currentCategory: 'All',
   currentSearch: '',
   
@@ -33,17 +35,22 @@ const app = {
     });
 
     this.shoppingList = JSON.parse(localStorage.getItem('renz_shopping_list')) || [];
+    this.pantrySelection = JSON.parse(localStorage.getItem('renz_pantry_selection')) || []; 
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.custom-dropdown')) {
+        document.querySelectorAll('.custom-dropdown').forEach(d => d.classList.remove('open'));
+      }
+    });
 
     const procedureArea = document.getElementById('editProcedure');
     if (procedureArea) {
       procedureArea.addEventListener('keydown', (e) => {
         if (e.ctrlKey || e.metaKey) {
           let handled = false;
-
           if (e.code === 'KeyB') { this.insertMarkdown('**', '**'); handled = true; }
           if (e.code === 'KeyI') { this.insertMarkdown('*', '*'); handled = true; }
           if (e.code === 'KeyU') { this.insertMarkdown('__', '__'); handled = true; }
-          
           if (handled) {
             e.preventDefault();
             this.updatePreview();
@@ -65,7 +72,20 @@ const app = {
     }
   },
 
+  playSound: function(type) {
+    let audioId = 'sfx-pop';
+    if (type === 'success') audioId = 'sfx-success';
+    if (type === 'star') audioId = 'sfx-star';
+    
+    const audio = document.getElementById(audioId);
+    if (audio) {
+      audio.currentTime = 0;
+      audio.play().catch(e => console.log("Audio play blocked by browser: ", e));
+    }
+  },
+
   showToast: function(msg) {
+    this.playSound('pop');
     const container = document.getElementById('toastContainer');
     if (!container) return;
     const toast = document.createElement('div');
@@ -81,6 +101,89 @@ const app = {
       setTimeout(() => toast.remove(), 300);
     }, 3000);
   },
+
+  customAlert: function(title, message) {
+    this.playSound('pop');
+    document.getElementById('customModalTitle').textContent = title;
+    document.getElementById('customModalMessage').textContent = message;
+    document.getElementById('customModalActions').innerHTML = `<button class="btn-primary" onclick="document.getElementById('customModalOverlay').classList.add('hidden')">Got it!</button>`;
+    document.getElementById('customModalOverlay').classList.remove('hidden');
+  },
+
+  customConfirm: function(title, message, onConfirm) {
+    this.playSound('pop');
+    document.getElementById('customModalTitle').textContent = title;
+    document.getElementById('customModalMessage').textContent = message;
+    
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = 'btn-danger';
+    confirmBtn.textContent = 'Yes, do it';
+    confirmBtn.onclick = () => {
+      document.getElementById('customModalOverlay').classList.add('hidden');
+      onConfirm();
+    };
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn-secondary';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.onclick = () => document.getElementById('customModalOverlay').classList.add('hidden');
+    
+    const actions = document.getElementById('customModalActions');
+    actions.innerHTML = '';
+    actions.appendChild(cancelBtn);
+    actions.appendChild(confirmBtn);
+    
+    document.getElementById('customModalOverlay').classList.remove('hidden');
+  },
+
+  selectDropdown: function(id, value, displayLabel) {
+    document.getElementById(id).value = value;
+    document.getElementById(id + 'Display').textContent = displayLabel || value;
+    
+    if(id === 'ingUnit') {
+       this.calcMacrosUI(); 
+    }
+  },
+
+  /* ================= NEW AUTOCOMPLETE LOGIC ================= */
+  filterAutocomplete: function(input) {
+    const val = input.value.toLowerCase();
+    const dropdown = input.nextElementSibling;
+    if (!dropdown || !dropdown.classList.contains('autocomplete-dropdown')) return;
+
+    let matches = this.ingredientsRegistry;
+    if (val) {
+      matches = matches.filter(i => i.name.toLowerCase().includes(val));
+    }
+
+    matches = matches.slice(0, 15);
+
+    if (matches.length > 0) {
+      dropdown.innerHTML = matches.map(m => `<div class="autocomplete-item" onmousedown="app.selectAutocomplete(event, this, '${m.name.replace(/'/g, "\\'")}')">${m.name}</div>`).join('');
+      dropdown.classList.add('show');
+    } else {
+      dropdown.classList.remove('show');
+    }
+  },
+  
+  closeAutocomplete: function(input) {
+     const dropdown = input.nextElementSibling;
+     if (dropdown) dropdown.classList.remove('show');
+  },
+  
+  selectAutocomplete: function(e, itemElem, name) {
+     e.preventDefault(); 
+     const input = itemElem.parentElement.previousElementSibling;
+     input.value = name;
+     
+     const evt1 = new Event('input', { bubbles: true });
+     input.dispatchEvent(evt1);
+     const evt2 = new Event('change', { bubbles: true });
+     input.dispatchEvent(evt2);
+     
+     itemElem.parentElement.classList.remove('show');
+  },
+  /* ========================================================== */
 
   updateUserUI: function(user) {
     this.currentUser = user;
@@ -103,11 +206,9 @@ const app = {
     const dynamicRedirectUrl = window.location.origin + window.location.pathname;
     const { error } = await client.auth.signInWithOAuth({
         provider: 'discord',
-        options: {
-            redirectTo: dynamicRedirectUrl
-        }
+        options: { redirectTo: dynamicRedirectUrl }
     });
-    if (error) alert(error.message);
+    if (error) this.customAlert("Login Failed", error.message);
   },
 
   logout: async function() {
@@ -120,13 +221,17 @@ const app = {
     document.getElementById(viewId).classList.add('active');
     
     document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
-    if(viewId === 'view-home') document.getElementById('nav-home').classList.add('active');
-    if(viewId === 'view-dashboard') document.getElementById('nav-browse').classList.add('active');
-    if(viewId === 'view-ingredients') document.getElementById('nav-pantry').classList.add('active');
-    if(viewId === 'view-shopping') document.getElementById('nav-cart').classList.add('active');
+    if(viewId === 'view-home') document.getElementById('nav-home')?.classList.add('active');
+    if(viewId === 'view-dashboard') document.getElementById('nav-browse')?.classList.add('active');
+    if(viewId === 'view-ingredients') document.getElementById('nav-pantry')?.classList.add('active');
+    if(viewId === 'view-shopping') document.getElementById('nav-cart')?.classList.add('active');
 
     if (viewId === 'view-home') this.renderHome();
-    if (viewId === 'view-dashboard') this.renderDashboard();
+    if (viewId === 'view-dashboard') {
+      this.tempPantrySelection = [...this.pantrySelection];
+      this.renderPantryFilter();
+      this.renderDashboard();
+    }
     if (viewId === 'view-ingredients') this.loadIngredientsView();
     if (viewId === 'view-shopping') {
       this.fetchShoppingList();
@@ -137,9 +242,7 @@ const app = {
   loadSharedRecipe: async function(code) {
     document.getElementById('detailTitle').textContent = "Loading...";
     this.showView('view-detail');
-    
     const { data, error } = await client.from('recipes').select('id').eq('short_code', code).maybeSingle();
-    
     if (data && data.id) {
       this.openDetail(data.id);
     } else {
@@ -151,13 +254,7 @@ const app = {
     const { data, error } = await client.from('ingredients').select('*').order('name');
     if (!error && data) {
       this.ingredientsRegistry = data;
-      this.populateDatalists();
     }
-  },
-
-  populateDatalists: function() {
-    const dl = document.getElementById('ingredientDatalist');
-    if (dl) dl.innerHTML = this.ingredientsRegistry.map(ing => `<option value="${ing.name}">`).join('');
   },
 
   getCategoryIcon: function(category) {
@@ -195,10 +292,8 @@ const app = {
       sortedData.sort((a, b) => {
         let valA = a[this.sortColumn] || '';
         let valB = b[this.sortColumn] || '';
-        
         if (typeof valA === 'string') valA = valA.toLowerCase();
         if (typeof valB === 'string') valB = valB.toLowerCase();
-
         if (valA < valB) return this.sortDesc ? 1 : -1;
         if (valA > valB) return this.sortDesc ? -1 : 1;
         return 0;
@@ -250,11 +345,9 @@ const app = {
     });
   },
 
-  // NEW: Calculate macro dynamically while registering ingredient
   calcMacrosUI: function() {
     const amount = parseFloat(document.getElementById('ingAmount').value) || 0;
     const unit = document.getElementById('ingUnit').value || 'unit';
-    
     const cal = parseFloat(document.getElementById('ingCal').value) || 0;
     const carb = parseFloat(document.getElementById('ingCarb').value) || 0;
     const pro = parseFloat(document.getElementById('ingPro').value) || 0;
@@ -284,7 +377,7 @@ const app = {
     const fat = parseFloat(document.getElementById('ingFat').value) || 0;
 
     if (!name || !amount || !unit || isNaN(cost)) {
-      return alert("Please fill out Name, Amount, Unit, and Cost.");
+      return this.customAlert("Missing Info", "Please fill out Name, Amount, Unit, and Cost.");
     }
 
     const costPerUnit = cost / amount;
@@ -305,11 +398,11 @@ const app = {
     const { error } = await client.from('ingredients').insert(newIng);
 
     if (error) {
-      alert("Error saving ingredient: " + error.message);
+      this.customAlert("Error", "Failed to save ingredient: " + error.message);
     } else {
       document.getElementById('ingName').value = '';
       document.getElementById('ingAmount').value = '';
-      document.getElementById('ingUnit').value = 'g';
+      this.selectDropdown('ingUnit', 'g', 'g');
       document.getElementById('ingCost').value = '';
       document.getElementById('ingCategory').value = '';
       document.getElementById('ingSubcategory').value = '';
@@ -327,9 +420,10 @@ const app = {
   },
 
   fetchRecipes: async function() {
+    // UPGRADED: Explicitly fetch ingredient 'name' so that pantry filters can match correctly!
     const { data, error } = await client.from('recipes').select(`
       *,
-      recipe_ingredients ( qty, ingredients ( cost_per_unit ) )
+      recipe_ingredients ( qty, ingredients ( cost_per_unit, name ) )
     `).order('name');
     
     if (!error) this.recipes = data;
@@ -372,14 +466,14 @@ const app = {
     `;
   },
 
-renderHome: function() {
+  renderHome: function() {
     if (!this.recipes || this.recipes.length === 0) return;
 
-    // 1. CAROUSEL GALLERY (Top 5 Random)
-    const shuffled = [...this.recipes].sort(() => 0.5 - Math.random());
+    const galleryRecipes = [...this.recipes].sort(() => 0.5 - Math.random()).slice(0, 5);
+
     const gallery = document.getElementById('homeGallery');
     if (gallery) {
-      gallery.innerHTML = shuffled.slice(0, 5).map(r => {
+      gallery.innerHTML = galleryRecipes.map(r => {
         const rawImg = (r.image_url || '').trim().toLowerCase();
         const isValidImg = rawImg.length > 5 && rawImg.startsWith('http');
         const bgImage = isValidImg ? r.image_url.trim() : 'https://placehold.co/600x400/eeeeee/999999?text=No+Image';
@@ -403,12 +497,10 @@ renderHome: function() {
       }, 3500);
     }
 
-    // 2. DYNAMIC CATEGORIES SETUP
     const container = document.getElementById('dynamicHomeCategories');
     if (!container) return;
-    container.innerHTML = ''; // Clear container
+    container.innerHTML = ''; 
 
-    // Helper functions for dynamic sorting
     const getCost = (r) => {
       let baseCost = 0;
       if (r.recipe_ingredients) {
@@ -416,8 +508,7 @@ renderHome: function() {
           if (m.ingredients) baseCost += (m.qty * parseFloat(m.ingredients.cost_per_unit || 0));
         });
       }
-      const servings = parseFloat(r.servings) || 1;
-      return baseCost / servings;
+      return baseCost / (parseFloat(r.servings) || 1);
     };
     const getTime = (r) => (Number(r.prep_time) || 0) + (Number(r.cook_time) || 0);
 
@@ -433,41 +524,111 @@ renderHome: function() {
       `;
     };
 
-    // A. CHEAP EATS (Lowest Cost > 0)
     let cheapRecipes = [...this.recipes].filter(r => getCost(r) > 0).sort((a, b) => getCost(a) - getCost(b)).slice(0, 3);
-    renderSection('Cheap Eats', '', cheapRecipes);
+    renderSection('Cheap Eats', '💸', cheapRecipes);
 
-    // B. QUICK BITES (Lowest Time > 0)
     let quickRecipes = [...this.recipes].filter(r => getTime(r) > 0).sort((a, b) => getTime(a) - getTime(b)).slice(0, 3);
-    renderSection('Quick Bites', '', quickRecipes);
+    renderSection('Quick Bites', '⚡', quickRecipes);
 
-    // C. AIR-FRYER MAGIC (Regex search by tag)
     let airfryerRecipes = this.recipes.filter(r => (r.category || '').toLowerCase().includes('air-fryer') || (r.category || '').toLowerCase().includes('airfryer')).slice(0, 3);
-    renderSection('Air-Fryer', '', airfryerRecipes);
+    renderSection('Air-Fryer Goodness', '💨', airfryerRecipes);
 
-    // D. TOP POPULATED CATEGORIES
     const categoryCounts = {};
     this.recipes.forEach(r => {
       const tags = (r.category || '').split(',').map(t => t.trim()).filter(t => t);
       tags.forEach(t => {
         const lowerT = t.toLowerCase();
-        // Prevent generic/already used tags from dominating
         if(lowerT !== 'air-fryer' && lowerT !== 'airfryer' && lowerT !== 'main') {
           categoryCounts[t] = (categoryCounts[t] || 0) + 1;
         }
       });
     });
 
-    // Sort the tags by frequency, take top 2, and render
-    const sortedTags = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a]).slice(0, 4);
-    
+    const sortedTags = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a]).slice(0, 2);
     sortedTags.forEach(tag => {
       const tagRecipes = this.recipes.filter(r => (r.category || '').toLowerCase().includes(tag.toLowerCase())).slice(0, 3);
-      // Pick a random fun emoji for dynamic tags
       const icons = ['🔥', '✨', '😋', '🌟', '👨‍🍳', '🍲', '❤️'];
-      const randIcon = ''; // icons[Math.floor(Math.random() * icons.length)]
+      const randIcon = icons[Math.floor(Math.random() * icons.length)];
       renderSection(`Top Rated: ${tag}`, randIcon, tagRecipes);
     });
+  },
+
+  renderPantryFilter: function() {
+    const container = document.getElementById('pantryFilterList');
+    if (!container) return;
+    
+    const grouped = {};
+    this.ingredientsRegistry.forEach(ing => {
+      const cat = ing.category || 'Other';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(ing.name);
+    });
+
+    let html = '';
+    for (const [cat, items] of Object.entries(grouped)) {
+      items.sort((a,b) => a.localeCompare(b));
+      html += `
+        <div style="background: var(--bg-light); border: 2px solid var(--border-color); border-radius: 20px; padding: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+            <h4 style="font-size: 1.2rem; color: var(--text-dark); text-transform: uppercase;">${cat}</h4>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.75rem; box-shadow: none;" onclick="app.pantrySelectAllCat('${cat.replace(/'/g, "\\'")}')">Select All</button>
+              <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.75rem; box-shadow: none;" onclick="app.pantryClearCat('${cat.replace(/'/g, "\\'")}')">Clear</button>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            ${items.map(name => {
+              const isActive = this.tempPantrySelection.includes(name) ? 'active' : '';
+              return `<button class="filter-btn ${isActive}" style="font-size: 0.9rem; padding: 10px 18px; border-radius: 16px;" onclick="app.togglePantryItem('${name.replace(/'/g, "\\'")}')">${name}</button>`;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+    container.innerHTML = html;
+  },
+
+  togglePantryItem: function(ingName) {
+    const index = this.tempPantrySelection.indexOf(ingName);
+    if (index > -1) {
+      this.tempPantrySelection.splice(index, 1);
+    } else {
+      this.tempPantrySelection.push(ingName);
+    }
+    this.renderPantryFilter();
+  },
+
+  pantrySelectAllCat: function(catName) {
+    this.ingredientsRegistry.forEach(ing => {
+      if ((ing.category || 'Other') === catName && !this.tempPantrySelection.includes(ing.name)) {
+        this.tempPantrySelection.push(ing.name);
+      }
+    });
+    this.renderPantryFilter();
+  },
+
+  pantryClearCat: function(catName) {
+    const namesToClear = this.ingredientsRegistry.filter(ing => (ing.category || 'Other') === catName).map(i => i.name);
+    this.tempPantrySelection = this.tempPantrySelection.filter(name => !namesToClear.includes(name));
+    this.renderPantryFilter();
+  },
+
+  pantrySelectAllGlobal: function() {
+    this.tempPantrySelection = this.ingredientsRegistry.map(i => i.name);
+    this.renderPantryFilter();
+  },
+
+  pantryClearGlobal: function() {
+    this.tempPantrySelection = [];
+    this.renderPantryFilter();
+  },
+
+  applyPantryFilter: function() {
+    this.pantrySelection = [...this.tempPantrySelection];
+    localStorage.setItem('renz_pantry_selection', JSON.stringify(this.pantrySelection));
+    document.getElementById('pantryFilterSection').classList.add('hidden');
+    this.playSound('success');
+    this.renderDashboard();
   },
 
   renderDashboard: function() {
@@ -485,8 +646,6 @@ renderHome: function() {
     });
     
     const uniqueCategories = Array.from(allTags).sort();
-    const catDl = document.getElementById('categoryDatalist');
-    if (catDl) catDl.innerHTML = uniqueCategories.map(c => `<option value="${c}">`).join('');
     
     let navHTML = `<button class="filter-btn ${this.currentCategory === 'All' ? 'active' : ''}" data-category="All">All</button>`;
     uniqueCategories.forEach(cat => {
@@ -502,12 +661,30 @@ renderHome: function() {
       });
     });
 
+    const searchVal = this.currentSearch.toLowerCase();
+
     const filtered = this.recipes.filter(r => {
       const catString = r.category || 'Uncategorized';
       const recipeTags = catString.split(',').map(t => t.trim());
-      const matchCat = this.currentCategory === 'All' || recipeTags.includes(this.currentCategory);
-      const matchSearch = r.name.toLowerCase().includes(this.currentSearch.toLowerCase());
-      return matchCat && matchSearch;
+      
+      const matchCatNav = this.currentCategory === 'All' || recipeTags.includes(this.currentCategory);
+      
+      const matchSearch = r.name.toLowerCase().includes(searchVal) ||
+                          catString.toLowerCase().includes(searchVal) ||
+                          (r.author_name || '').toLowerCase().includes(searchVal);
+
+      let matchPantry = true;
+      if (this.pantrySelection.length > 0) {
+        const recipeIngNames = r.recipe_ingredients ? r.recipe_ingredients.map(m => m.ingredients ? m.ingredients.name.toLowerCase() : '').filter(Boolean) : [];
+        const rawIngsLower = (r.raw_ingredients || '').toLowerCase();
+        
+        matchPantry = this.pantrySelection.some(selected => {
+           const selLower = selected.toLowerCase();
+           return recipeIngNames.includes(selLower) || rawIngsLower.includes(selLower);
+        });
+      }
+
+      return matchCatNav && matchSearch && matchPantry;
     });
 
     if (filtered.length === 0) {
@@ -521,12 +698,12 @@ renderHome: function() {
   formatProcedure: function(text) {
     if (!text) return "No instructions provided.";
     let html = text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')            // Bold
-      .replace(/__(.*?)__/g, '<u>$1</u>')                           // Underline
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')                         // Italic
-      .replace(/~~(.*?)~~/g, '<del>$1</del>')                       // Strikethrough
-      .replace(/`([^`]+)`/g, '<code style="background:#e2e8f0; padding:4px 8px; border-radius:8px; font-family:monospace; color:var(--pop-orange); font-size:0.9em; font-weight:bold;">$1</code>') // Code
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--accent-cyan); text-decoration:underline;">$1</a>'); // Links
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/__(.*?)__/g, '<u>$1</u>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/~~(.*?)~~/g, '<del>$1</del>')
+      .replace(/`([^`]+)`/g, '<code style="background:#e2e8f0; padding:4px 8px; border-radius:8px; font-family:monospace; color:var(--pop-orange); font-size:0.9em; font-weight:bold;">$1</code>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--accent-cyan); text-decoration:underline;">$1</a>');
 
     const lines = html.split('\n');
     let formattedHTML = '';
@@ -638,6 +815,52 @@ renderHome: function() {
     this.updatePreview();
   },
 
+  checkFavoriteStatus: async function() {
+    const btn = document.getElementById('btnFavorite');
+    if (!btn) return;
+    if (!this.currentUser || !this.currentOpenRecipeId) {
+      btn.textContent = "⭐ Save";
+      btn.style.backgroundColor = "var(--bg-white)";
+      return;
+    }
+
+    const { data } = await client.from('favorites')
+      .select('recipe_id')
+      .eq('user_id', this.currentUser.id)
+      .eq('recipe_id', this.currentOpenRecipeId)
+      .maybeSingle();
+
+    if (data) {
+      btn.textContent = "🌟 Saved!";
+      btn.style.backgroundColor = "#fef3c7";
+    } else {
+      btn.textContent = "⭐ Save";
+      btn.style.backgroundColor = "var(--bg-white)";
+    }
+  },
+
+  toggleFavorite: async function() {
+    if (!this.currentUser) return this.customAlert("Login Required", "Please log in to save favorites to your catalog!");
+    if (!this.currentOpenRecipeId) return;
+
+    this.playSound('star');
+
+    const { data } = await client.from('favorites')
+      .select('recipe_id')
+      .eq('user_id', this.currentUser.id)
+      .eq('recipe_id', this.currentOpenRecipeId)
+      .maybeSingle();
+
+    if (data) {
+      await client.from('favorites').delete().eq('user_id', this.currentUser.id).eq('recipe_id', this.currentOpenRecipeId);
+      this.showToast("Removed from Favorites");
+    } else {
+      await client.from('favorites').insert({ user_id: this.currentUser.id, recipe_id: this.currentOpenRecipeId });
+      this.showToast("Added to Favorites!");
+    }
+    this.checkFavoriteStatus();
+  },
+
   openDetail: async function(recipeId) {
     document.getElementById('detailTitle').textContent = "Loading...";
     this.showView('view-detail');
@@ -655,11 +878,13 @@ renderHome: function() {
       .single();
 
     if (error) {
-      alert("Error loading recipe details.");
+      this.customAlert("Error", "Error loading recipe details.");
       return this.showView('view-dashboard');
     }
 
     this.currentRecipeData = recipe;
+    this.currentOpenRecipeId = recipe.id;
+    this.checkFavoriteStatus();
     
     const rawImg = (recipe.image_url || '').trim().toLowerCase();
     const bgImage = (rawImg.length > 5 && rawImg.startsWith('http')) ? recipe.image_url.trim() : 'https://placehold.co/1200x400/eeeeee/999999?text=No+Image';
@@ -744,10 +969,17 @@ renderHome: function() {
           return `<li style="list-style: none; color: var(--pop-orange); font-weight: 900; margin-top: 20px; margin-bottom: 8px; border-bottom: 3px solid var(--border-color); padding-bottom: 4px; font-size: 1.1rem;">${trimmed.slice(1, -1)}</li>`;
         }
         
-        const match = trimmed.match(/^([\d.]+)\s*([a-zA-Z]+)?\s+(.*)$/);
+        const match = trimmed.match(/^([\d.\/]+)\s*([a-zA-Z]+)?\s+(.*)$/);
         
         if (match) {
-          const originalQty = parseFloat(match[1]);
+          let originalQty = 1;
+          if (match[1].includes('/')) {
+              const [num, den] = match[1].split('/');
+              originalQty = (parseFloat(num) / parseFloat(den)) || 1;
+          } else {
+              originalQty = parseFloat(match[1]) || 1;
+          }
+
           const scaledQty = +(originalQty * ratio).toFixed(2);
           const unit = match[2] ? match[2].trim() : '';
           const name = match[3].trim();
@@ -773,7 +1005,6 @@ renderHome: function() {
     document.getElementById('detailIngredients').innerHTML = ingredientsHTML || '<li>No ingredients specified.</li>';
   },
 
-  // NEW: Intercept copy link click to prevent card flip
   copyShareLink: function(event) {
     event.stopPropagation();
     const link = document.getElementById('shareCardLinkText').textContent;
@@ -810,6 +1041,148 @@ renderHome: function() {
 
     document.querySelector('.flip-container').classList.remove('flipped');
     modal.classList.remove('hidden');
+  },
+
+  loadProfile: async function(userId) {
+    document.getElementById('profileName').textContent = "Loading...";
+    this.showView('view-profile');
+
+    const { data: userRecipes } = await client.from('recipes').select('*').eq('author_id', userId);
+    const authorName = userRecipes && userRecipes.length > 0 ? userRecipes[0].author_name : "Chef";
+    const authorAvatar = userRecipes && userRecipes.length > 0 ? userRecipes[0].author_avatar : "https://via.placeholder.com/120";
+
+    document.getElementById('profileName').textContent = authorName;
+    document.getElementById('profileAvatar').src = authorAvatar;
+
+    const { data: userReviews } = await client.from('recipe_reviews').select('id').eq('user_id', userId);
+
+    const recipeCount = userRecipes ? userRecipes.length : 0;
+    const reviewCount = userReviews ? userReviews.length : 0;
+    const totalXp = (recipeCount * 100) + (reviewCount * 20);
+    const level = Math.floor(totalXp / 500) + 1;
+    const progress = (totalXp % 500) / 500 * 100;
+
+    document.getElementById('profileLevel').textContent = level;
+    document.getElementById('profileXpText').textContent = `${totalXp} XP`;
+    document.getElementById('profileXpFill').style.width = `${progress}%`;
+
+    const recipesGrid = document.getElementById('profileRecipesGrid');
+    recipesGrid.innerHTML = userRecipes && userRecipes.length > 0 
+      ? userRecipes.map(r => this.createRecipeCardHTML(r)).join('') 
+      : "<p style='grid-column: 1/-1; text-align: center; font-weight: 800; color: #666;'>No recipes authored yet.</p>";
+
+    const badges = [
+      { name: "First Steps", desc: "Write your first recipe.", icon: "🥚", unlocked: recipeCount >= 1 },
+      { name: "Master Chef", desc: "Author 5+ recipes.", icon: "👨‍🍳", unlocked: recipeCount >= 5 },
+      { name: "Food Critic", desc: "Leave 3+ reviews.", icon: "📝", unlocked: reviewCount >= 3 },
+      { name: "Pantry Lord", desc: "Reach Level 5.", icon: "👑", unlocked: level >= 5 }
+    ];
+
+    document.getElementById('profileBadgesGrid').innerHTML = badges.map(b => `
+      <div class="badge-card ${b.unlocked ? 'unlocked' : ''}">
+        <div class="badge-icon">${b.icon}</div>
+        <div class="badge-name">${b.name}</div>
+        <div class="badge-desc">${b.desc}</div>
+      </div>
+    `).join('');
+
+    this.loadFavoritesTab(userId);
+    this.loadPlannerTab(userId);
+  },
+
+  switchProfileTab: function(tabName, btnElement) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.profile-tab-content').forEach(content => content.classList.add('hidden'));
+    btnElement.classList.add('active');
+    document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+  },
+
+  loadFavoritesTab: async function(userId) {
+    const grid = document.getElementById('profileFavoritesGrid');
+    const { data: favs } = await client.from('favorites').select('recipe_id').eq('user_id', userId);
+    
+    if (!favs || favs.length === 0) {
+      grid.innerHTML = "<p style='grid-column: 1/-1; text-align: center; font-weight: 800; color: #666;'>No favorites saved yet.</p>";
+      return;
+    }
+
+    const recipeIds = favs.map(f => f.recipe_id);
+    const { data: recipes } = await client.from('recipes').select('*').in('id', recipeIds);
+    
+    if(recipes) {
+        grid.innerHTML = recipes.map(r => this.createRecipeCardHTML(r)).join('');
+        const dragList = document.getElementById('plannerFavoritesList');
+        dragList.innerHTML = recipes.map(r => `
+        <div class="mini-recipe-card" draggable="true" ondragstart="app.handleDragStart(event, '${r.id}', '${encodeURIComponent(r.name)}', '${encodeURIComponent(r.image_url)}')">
+            <img src="${r.image_url || 'https://via.placeholder.com/40'}" class="mini-img">
+            <span>${r.name}</span>
+        </div>
+        `).join('');
+    }
+  },
+
+  loadPlannerTab: async function(userId) {
+    const { data: planItems } = await client.from('weekly_plan').select('*, recipes(name, image_url)').eq('user_id', userId);
+    
+    document.querySelectorAll('.drop-zone').forEach(zone => zone.innerHTML = '');
+
+    if (planItems) {
+      planItems.forEach(item => {
+        const zone = document.querySelector(`.drop-zone[data-day="${item.day_of_week}"]`);
+        if (zone && item.recipes) {
+          zone.innerHTML += `
+            <div class="mini-recipe-card" style="cursor: default;">
+              <img src="${item.recipes.image_url || 'https://via.placeholder.com/40'}" class="mini-img">
+              <span style="flex:1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.recipes.name}</span>
+              <button onclick="app.removePlanItem('${item.id}', this)" style="background: none; border: none; color: red; font-weight: 900; padding: 0 5px; box-shadow: none;">X</button>
+            </div>
+          `;
+        }
+      });
+    }
+  },
+
+  handleDragStart: function(e, recipeId, name, img) {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ recipeId, name: decodeURIComponent(name), img: decodeURIComponent(img) }));
+  },
+  handleDragOver: function(e) {
+    e.preventDefault();
+    e.currentTarget.classList.add('drag-over');
+  },
+  handleDragLeave: function(e) {
+    e.currentTarget.classList.remove('drag-over');
+  },
+  handleDrop: async function(e) {
+    e.preventDefault();
+    const zone = e.currentTarget;
+    zone.classList.remove('drag-over');
+
+    const day = zone.dataset.day;
+    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+
+    if (!this.currentUser) return this.customAlert("Login Required", "Must be logged in to save plans!");
+
+    this.playSound('pop');
+
+    const { data: newPlan } = await client.from('weekly_plan').insert({
+      user_id: this.currentUser.id,
+      recipe_id: data.recipeId,
+      day_of_week: day
+    }).select().single();
+
+    if (newPlan) {
+      zone.innerHTML += `
+        <div class="mini-recipe-card" style="cursor: default;">
+          <img src="${data.img || 'https://via.placeholder.com/40'}" class="mini-img">
+          <span style="flex:1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${data.name}</span>
+          <button onclick="app.removePlanItem('${newPlan.id}', this)" style="background: none; border: none; color: red; font-weight: 900; padding: 0 5px; box-shadow: none;">X</button>
+        </div>
+      `;
+    }
+  },
+  removePlanItem: async function(planId, btnElement) {
+    await client.from('weekly_plan').delete().eq('id', planId);
+    btnElement.parentElement.remove();
   },
 
   fetchShoppingList: async function() {
@@ -876,11 +1249,11 @@ renderHome: function() {
     });
 
     if (addedCount > 0) {
+      this.playSound('success');
       this.showToast(`Added ${addedCount} ingredient(s) to List!`);
     }
   },
 
-  // NEW: Lock Unit Field automatically on matching ingredient
   checkManualShopUnit: function(value) {
     const unitInput = document.getElementById('manualShopUnit');
     const found = this.ingredientsRegistry.find(i => i.name.toLowerCase() === value.trim().toLowerCase());
@@ -915,7 +1288,7 @@ renderHome: function() {
     nameInput.value = '';
     qtyInput.value = '1';
     unitInput.value = '';
-    unitInput.removeAttribute('disabled'); // Unlock unit input
+    unitInput.removeAttribute('disabled');
   },
 
   upsertShoppingItem: function(name, qty, unit, costPerUnit) {
@@ -1020,14 +1393,14 @@ renderHome: function() {
   },
 
   clearAllShoppingList: function() {
-    if (confirm("Are you sure you want to clear your entire shopping list?")) {
+    this.customConfirm("Clear List?", "Are you sure you want to clear your entire shopping list?", () => {
       if (this.currentUser) {
         client.from('shopping_list').delete().eq('user_id', this.currentUser.id).then();
       }
       this.shoppingList = [];
       localStorage.removeItem('renz_shopping_list');
       this.renderShoppingList();
-    }
+    });
   },
 
   renderShoppingList: function() {
@@ -1055,8 +1428,9 @@ renderHome: function() {
       return `
         <div class="shopping-row ${checkedClass}">
           <input type="checkbox" ${checkboxStatus} onchange="app.updateShoppingItem(${index}, 'checked', this.checked)">
-          <div class="shopping-item-name">
-            <input type="text" value="${item.name}" list="ingredientDatalist" onchange="app.updateShoppingItem(${index}, 'name', this.value)" placeholder="Item Name">
+          <div class="shopping-item-name autocomplete-wrapper">
+            <input type="text" value="${item.name}" oninput="app.filterAutocomplete(this); app.updateShoppingItem(${index}, 'name', this.value)" onfocus="app.filterAutocomplete(this)" onblur="app.closeAutocomplete(this)" placeholder="Item Name" autocomplete="off" style="width: 100%;">
+            <div class="autocomplete-dropdown"></div>
           </div>
           <div class="shopping-item-qty">
             <input type="number" value="${item.qty}" step="any" onchange="app.updateShoppingItem(${index}, 'qty', this.value)">
@@ -1127,12 +1501,13 @@ renderHome: function() {
     if (!error) {
       document.getElementById('reviewText').value = ''; 
       this.loadReviews(this.currentOpenRecipeId); 
+      this.playSound('success');
       this.showToast("Review submitted!");
     }
   },
 
   openEditor: function(recipeObj = null) {
-    if (!this.currentUser) return alert("You must be logged in to create a recipe.");
+    if (!this.currentUser) return this.customAlert("Login Required", "You must be logged in to create a recipe.");
 
     const title = document.getElementById('editorTitle');
     this.editIngredientsList = [];
@@ -1229,7 +1604,12 @@ renderHome: function() {
         row.innerHTML = `
           <input type="number" value="${item.qty}" oninput="app.editIngredientsList[${index}].qty = parseFloat(this.value) || 0" style="width: 100px;" step="any">
           <span style="width: 50px; text-align: center; font-weight: 800; color: var(--accent-cyan); font-size: 1.1rem;">${item.unit}</span>
-          <input list="ingredientDatalist" value="${item.name}" onchange="app.updateEditorIngredientUnit(${index}, this.value)" oninput="app.editIngredientsList[${index}].name = this.value" placeholder="Type ingredient..." style="flex: 1;">
+          
+          <div class="autocomplete-wrapper" style="flex: 1;">
+            <input type="text" value="${item.name}" onchange="app.updateEditorIngredientUnit(${index}, this.value)" oninput="app.editIngredientsList[${index}].name = this.value; app.filterAutocomplete(this);" onfocus="app.filterAutocomplete(this)" onblur="app.closeAutocomplete(this)" placeholder="Type ingredient..." autocomplete="off" style="width: 100%;">
+            <div class="autocomplete-dropdown"></div>
+          </div>
+
           <button class="btn-danger" onclick="app.removeEditorIngredient(${index})">X</button>
         `;
       }
@@ -1292,7 +1672,6 @@ renderHome: function() {
         await client.from('recipe_ingredients').delete().eq('recipe_id', idInput);
       } else {
         recipeData.short_code = Math.random().toString(36).substring(2, 8);
-        
         const { data, error } = await client.from('recipes').insert(recipeData).select().single();
         if (error) throw error;
         finalRecipeId = data.id;
@@ -1319,25 +1698,26 @@ renderHome: function() {
       saveBtn.textContent = "Save Recipe";
       saveBtn.disabled = false;
       this.openDetail(finalRecipeId);
+      this.playSound('success');
       this.showToast("Recipe saved successfully!");
 
     } catch (err) {
       console.error("Save Error:", err);
-      alert("Failed to save recipe. Check console.");
+      this.customAlert("Save Error", "Failed to save recipe. Check console.");
       saveBtn.textContent = "Save Recipe";
       saveBtn.disabled = false;
     }
   },
 
   deleteRecipe: async function(id) {
-    if (confirm("Are you sure you want to delete this recipe? This cannot be undone.")) {
+    this.customConfirm("Delete Recipe?", "Are you sure you want to delete this recipe? This cannot be undone.", async () => {
       const { error } = await client.from('recipes').delete().eq('id', id);
       if (!error) {
         await this.fetchRecipes();
         this.showView('view-home');
         this.showToast("Recipe deleted");
       }
-    }
+    });
   }
 };
 
