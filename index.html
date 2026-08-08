@@ -100,7 +100,7 @@
        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
          <div>
            <h3 style="color: var(--accent-cyan); font-size: 1.8rem;">What's in my Pantry?</h3>
-           <p style="color: var(--text-gray); font-weight: 700; margin-top: 5px;">Select ingredients you have. We'll find recipes you can make!</p>
+           <p style="color: var(--text-gray); font-weight: 700; margin-top: 5px;">Select ingredients you have. We'll show recipes where you have <strong>all</strong> required ingredients.</p>
          </div>
          <div style="display: flex; gap: 10px;">
            <button class="btn-secondary" onclick="app.pantrySelectAllGlobal()">Select All</button>
@@ -300,7 +300,10 @@
         </div>
         <div class="form-group flex-1">
           <label>Tags (Comma Separated)</label>
-          <input type="text" id="editCategory" placeholder="e.g. Main, Chicken, Fried">
+          <div class="autocomplete-wrapper" style="width: 100%;">
+            <input type="text" id="editCategory" placeholder="e.g. Main, Chicken, Fried" oninput="app.filterAutocomplete(this, 'category')" onfocus="app.filterAutocomplete(this, 'category')" onblur="app.closeAutocomplete(this)" autocomplete="off" style="width: 100%;">
+            <div class="autocomplete-dropdown"></div>
+          </div>
         </div>
       </div>
 
@@ -375,7 +378,7 @@
           <div class="form-group flex-2">
             <label>Ingredient Name</label>
             <div class="autocomplete-wrapper" style="width: 100%;">
-              <input type="text" id="ingName" placeholder="e.g. Vanilla Extract" oninput="app.filterAutocomplete(this)" onfocus="app.filterAutocomplete(this)" onblur="app.closeAutocomplete(this)" autocomplete="off" style="width: 100%;">
+              <input type="text" id="ingName" placeholder="e.g. Vanilla Extract" oninput="app.filterAutocomplete(this, 'ingredient')" onfocus="app.filterAutocomplete(this, 'ingredient')" onblur="app.closeAutocomplete(this)" autocomplete="off" style="width: 100%;">
               <div class="autocomplete-dropdown"></div>
             </div>
           </div>
@@ -413,7 +416,10 @@
         <div class="form-row">
           <div class="form-group flex-1">
             <label>Category</label>
-            <input type="text" id="ingCategory" placeholder="e.g. Baking">
+            <div class="autocomplete-wrapper" style="width: 100%;">
+              <input type="text" id="ingCategory" placeholder="e.g. Baking" oninput="app.filterAutocomplete(this, 'category')" onfocus="app.filterAutocomplete(this, 'category')" onblur="app.closeAutocomplete(this)" autocomplete="off" style="width: 100%;">
+              <div class="autocomplete-dropdown"></div>
+            </div>
           </div>
           <div class="form-group flex-1">
             <label>Subcategory</label>
@@ -491,7 +497,7 @@
       <h3 style="margin-bottom: 20px; color: var(--accent-cyan); font-size: 1.4rem;">+ Manual Entry</h3>
       <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
         <div class="autocomplete-wrapper" style="flex: 2;">
-          <input type="text" id="manualShopName" placeholder="Item Name" oninput="app.filterAutocomplete(this); app.checkManualShopUnit(this.value)" onfocus="app.filterAutocomplete(this)" onblur="app.closeAutocomplete(this)" autocomplete="off" style="width: 100%;">
+          <input type="text" id="manualShopName" placeholder="Item Name" oninput="app.filterAutocomplete(this, 'ingredient'); app.checkManualShopUnit(this.value)" onfocus="app.filterAutocomplete(this, 'ingredient')" onblur="app.closeAutocomplete(this)" autocomplete="off" style="width: 100%;">
           <div class="autocomplete-dropdown"></div>
         </div>
         <input type="number" id="manualShopQty" value="1" step="any" style="flex: 1;">
@@ -571,6 +577,6 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=4.1"></script>
+  <script src="app.js?v=4.2"></script>
 </body>
 </html>

@@ -145,21 +145,31 @@ const app = {
     }
   },
 
-  /* ================= NEW AUTOCOMPLETE LOGIC ================= */
-  filterAutocomplete: function(input) {
-    const val = input.value.toLowerCase();
+  filterAutocomplete: function(input, type) {
+    const val = input.value.toLowerCase().trim();
     const dropdown = input.nextElementSibling;
     if (!dropdown || !dropdown.classList.contains('autocomplete-dropdown')) return;
 
-    let matches = this.ingredientsRegistry;
+    let sourceData = [];
+    if (type === 'ingredient') {
+       sourceData = [...new Set(this.ingredientsRegistry.map(i => i.name))];
+    } else if (type === 'category') {
+       const allTags = new Set();
+       this.recipes.forEach(r => {
+         if(r.category) r.category.split(',').forEach(t => allTags.add(t.trim()));
+       });
+       sourceData = [...allTags];
+    }
+
+    let matches = sourceData;
     if (val) {
-      matches = matches.filter(i => i.name.toLowerCase().includes(val));
+      matches = matches.filter(name => name.toLowerCase().includes(val));
     }
 
     matches = matches.slice(0, 15);
 
     if (matches.length > 0) {
-      dropdown.innerHTML = matches.map(m => `<div class="autocomplete-item" onmousedown="app.selectAutocomplete(event, this, '${m.name.replace(/'/g, "\\'")}')">${m.name}</div>`).join('');
+      dropdown.innerHTML = matches.map(m => `<div class="autocomplete-item" onmousedown="app.selectAutocomplete(event, this, '${m.replace(/'/g, "\\'")}')">${m}</div>`).join('');
       dropdown.classList.add('show');
     } else {
       dropdown.classList.remove('show');
@@ -168,7 +178,9 @@ const app = {
   
   closeAutocomplete: function(input) {
      const dropdown = input.nextElementSibling;
-     if (dropdown) dropdown.classList.remove('show');
+     if (dropdown) {
+         setTimeout(() => dropdown.classList.remove('show'), 150); 
+     }
   },
   
   selectAutocomplete: function(e, itemElem, name) {
@@ -183,7 +195,6 @@ const app = {
      
      itemElem.parentElement.classList.remove('show');
   },
-  /* ========================================================== */
 
   updateUserUI: function(user) {
     this.currentUser = user;
@@ -420,7 +431,6 @@ const app = {
   },
 
   fetchRecipes: async function() {
-    // UPGRADED: Explicitly fetch ingredient 'name' so that pantry filters can match correctly!
     const { data, error } = await client.from('recipes').select(`
       *,
       recipe_ingredients ( qty, ingredients ( cost_per_unit, name ) )
@@ -628,6 +638,7 @@ const app = {
     localStorage.setItem('renz_pantry_selection', JSON.stringify(this.pantrySelection));
     document.getElementById('pantryFilterSection').classList.add('hidden');
     this.playSound('success');
+    this.showToast("Pantry Filter Applied!");
     this.renderDashboard();
   },
 
@@ -675,13 +686,16 @@ const app = {
 
       let matchPantry = true;
       if (this.pantrySelection.length > 0) {
-        const recipeIngNames = r.recipe_ingredients ? r.recipe_ingredients.map(m => m.ingredients ? m.ingredients.name.toLowerCase() : '').filter(Boolean) : [];
-        const rawIngsLower = (r.raw_ingredients || '').toLowerCase();
+        const recipeIngs = r.recipe_ingredients 
+          ? r.recipe_ingredients.map(m => m.ingredients ? m.ingredients.name.toLowerCase().trim() : '').filter(Boolean) 
+          : [];
         
-        matchPantry = this.pantrySelection.some(selected => {
-           const selLower = selected.toLowerCase();
-           return recipeIngNames.includes(selLower) || rawIngsLower.includes(selLower);
-        });
+        if (recipeIngs.length > 0) {
+          const pantrySet = new Set(this.pantrySelection.map(p => p.toLowerCase().trim()));
+          matchPantry = recipeIngs.every(req => pantrySet.has(req));
+        } else {
+          matchPantry = false;
+        }
       }
 
       return matchCatNav && matchSearch && matchPantry;
@@ -1429,7 +1443,7 @@ const app = {
         <div class="shopping-row ${checkedClass}">
           <input type="checkbox" ${checkboxStatus} onchange="app.updateShoppingItem(${index}, 'checked', this.checked)">
           <div class="shopping-item-name autocomplete-wrapper">
-            <input type="text" value="${item.name}" oninput="app.filterAutocomplete(this); app.updateShoppingItem(${index}, 'name', this.value)" onfocus="app.filterAutocomplete(this)" onblur="app.closeAutocomplete(this)" placeholder="Item Name" autocomplete="off" style="width: 100%;">
+            <input type="text" value="${item.name}" oninput="app.filterAutocomplete(this, 'ingredient'); app.updateShoppingItem(${index}, 'name', this.value)" onfocus="app.filterAutocomplete(this, 'ingredient')" onblur="app.closeAutocomplete(this)" placeholder="Item Name" autocomplete="off" style="width: 100%;">
             <div class="autocomplete-dropdown"></div>
           </div>
           <div class="shopping-item-qty">
@@ -1606,7 +1620,7 @@ const app = {
           <span style="width: 50px; text-align: center; font-weight: 800; color: var(--accent-cyan); font-size: 1.1rem;">${item.unit}</span>
           
           <div class="autocomplete-wrapper" style="flex: 1;">
-            <input type="text" value="${item.name}" onchange="app.updateEditorIngredientUnit(${index}, this.value)" oninput="app.editIngredientsList[${index}].name = this.value; app.filterAutocomplete(this);" onfocus="app.filterAutocomplete(this)" onblur="app.closeAutocomplete(this)" placeholder="Type ingredient..." autocomplete="off" style="width: 100%;">
+            <input type="text" value="${item.name}" onchange="app.updateEditorIngredientUnit(${index}, this.value)" oninput="app.editIngredientsList[${index}].name = this.value; app.filterAutocomplete(this, 'ingredient');" onfocus="app.filterAutocomplete(this, 'ingredient')" onblur="app.closeAutocomplete(this)" placeholder="Type ingredient..." autocomplete="off" style="width: 100%;">
             <div class="autocomplete-dropdown"></div>
           </div>
 
