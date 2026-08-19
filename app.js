@@ -535,13 +535,13 @@ const app = {
     };
 
     let cheapRecipes = [...this.recipes].filter(r => getCost(r) > 0).sort((a, b) => getCost(a) - getCost(b)).slice(0, 3);
-    renderSection('Cheap Eats', '💸', cheapRecipes);
+    renderSection('Cheap Eats', '', cheapRecipes);
 
     let quickRecipes = [...this.recipes].filter(r => getTime(r) > 0).sort((a, b) => getTime(a) - getTime(b)).slice(0, 3);
-    renderSection('Quick Bites', '⚡', quickRecipes);
+    renderSection('Quick Bites', '', quickRecipes);
 
     let airfryerRecipes = this.recipes.filter(r => (r.category || '').toLowerCase().includes('air-fryer') || (r.category || '').toLowerCase().includes('airfryer')).slice(0, 3);
-    renderSection('Air-Fryer Goodness', '💨', airfryerRecipes);
+    renderSection('Air-Fryer', '', airfryerRecipes);
 
     const categoryCounts = {};
     this.recipes.forEach(r => {
@@ -554,10 +554,10 @@ const app = {
       });
     });
 
-    const sortedTags = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a]).slice(0, 2);
+    const sortedTags = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a]).slice(0, 5);
     sortedTags.forEach(tag => {
       const tagRecipes = this.recipes.filter(r => (r.category || '').toLowerCase().includes(tag.toLowerCase())).slice(0, 3);
-      const icons = ['🔥', '✨', '😋', '🌟', '👨‍🍳', '🍲', '❤️'];
+      const icons = [''];
       const randIcon = icons[Math.floor(Math.random() * icons.length)];
       renderSection(`Top Rated: ${tag}`, randIcon, tagRecipes);
     });
