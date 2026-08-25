@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>recipes</title>
+  <title>Renz-Bot | Recipes</title>
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 </head>
@@ -16,7 +16,6 @@
   <header class="top-nav">
     <div style="display: flex; gap: 30px; align-items: center; flex-wrap: wrap;">
       <div class="logo" onclick="app.showView('view-home')">recipes</div>
-      
       <nav class="nav-links">
         <a id="nav-home" class="active" onclick="app.showView('view-home')">Home</a>
         <a id="nav-browse" onclick="app.showView('view-dashboard')">Browse</a>
@@ -32,25 +31,21 @@
         <button class="btn-secondary" style="padding: 8px 16px; font-size: 0.8rem;" onclick="app.logout()">Logout</button>
         <button class="btn-primary" onclick="app.openEditor()">+ New Recipe</button>
       </div>
-      
       <button id="loginBtn" class="btn-primary" style="background-color: #5865F2; box-shadow: 0 4px 0 0 #4752C4;" onclick="app.loginWithDiscord()">
         Login with Discord
       </button>
     </div>
   </header>
 
-<main id="view-home" class="view active" style="padding: 0; max-width: 100%;">
-    
+  <main id="view-home" class="view active" style="padding: 0; max-width: 100%;">
     <section class="hero-section" style="border-radius: 0 0 40px 40px; box-shadow: 0 8px 0 0 rgba(0,0,0,0.05);">
       <div class="hero-content">
         <h1 style="font-size: 4.5rem; letter-spacing: -2px;">i like <span style="color: #ffe8d6;">food.</span></h1>
         <p style="font-size: 1.4rem;">Ang inyong smart at friendly na recipe manager at pantry tracker (more soon).</p>
         <button class="btn-primary" style="background: white; color: var(--pop-orange); box-shadow: 0 6px 0 0 #ffd6c2; font-size: 1.3rem; padding: 18px 40px; border-radius: 999px; margin-top: 10px;" onclick="app.showView('view-dashboard')">let me cook</button>
       </div>
-      
       <div class="gallery-wrapper">
-        <div class="gallery-track" id="homeGallery">
-        </div>
+        <div class="gallery-track" id="homeGallery"></div>
       </div>
     </section>
 
@@ -62,7 +57,6 @@
           <p>Convert any recipe into a highly organized shopping list instantly. We combine overlapping ingredients and calculate your exact estimated store cost.</p>
         </div>
       </div>
-
       <div class="marketing-row reverse">
         <div class="marketing-icon">📊</div>
         <div class="marketing-text">
@@ -70,7 +64,6 @@
           <p>Stay on top of your diet effortlessly. Link pantry ingredients to automatically calculate the calories, carbs, protein, and fat for every single serving.</p>
         </div>
       </div>
-
       <div class="marketing-row">
         <div class="marketing-icon">🔗</div>
         <div class="marketing-text">
@@ -81,21 +74,74 @@
     </section>
 
     <section style="background: var(--bg-white); padding: 80px 40px; border-top: 6px dashed var(--border-color); border-radius: 40px 40px 0 0;">
-      <div style="max-width: 1200px; margin: 0 auto;" id="dynamicHomeCategories">
-      </div>
+      <div style="max-width: 1200px; margin: 0 auto;" id="dynamicHomeCategories"></div>
     </section>
-
   </main>
 
   <main id="view-dashboard" class="view">
     <div class="toolbar" style="flex-wrap: wrap;">
-      <input type="text" id="searchInput" placeholder="Search menus, tags, authors..." oninput="app.currentSearch = this.value; app.renderDashboard()" style="flex: 1; min-width: 250px;">
+      <input type="text" id="searchInput" placeholder="Search menus, tags, authors, native names..." oninput="app.currentSearch = this.value; app.renderDashboard()" style="flex: 1; min-width: 250px;">
       <div class="filters" id="categoryNav">
         <button class="filter-btn active" data-category="All">All</button>
       </div>
       <button class="btn-secondary" style="border-radius: 999px; font-size: 0.9rem; padding: 10px 20px;" onclick="document.getElementById('pantryFilterSection').classList.toggle('hidden')">🪄 What's in my Pantry?</button>
+      <button class="btn-secondary" style="border-radius: 999px; font-size: 0.9rem; padding: 10px 20px;" onclick="document.getElementById('advancedFiltersSection').classList.toggle('hidden')">⚙️ Filters & Sort</button>
     </div>
 
+    <!-- ADVANCED FILTERS -->
+    <div id="advancedFiltersSection" class="hidden" style="margin-bottom: 30px; padding: 30px; background: var(--cyan-light); border-radius: 32px; border: 4px solid var(--accent-cyan); box-shadow: 0 10px 0 0 var(--accent-cyan);">
+       <h3 style="margin-bottom: 20px; color: var(--accent-cyan); font-size: 1.6rem;">Filters & Sorting</h3>
+       <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+         <div style="flex: 1; min-width: 200px; background: white; padding: 15px; border-radius: 16px; border: 2px solid var(--border-color);">
+           <label style="font-weight: 800; color: var(--text-dark); display: block; margin-bottom: 10px;">Rating (1-5)</label>
+           <div style="display: flex; gap: 10px;">
+             <input type="number" id="filterMinRating" placeholder="Min" min="1" max="5" oninput="app.renderDashboard()" style="width: 100%;">
+             <input type="number" id="filterMaxRating" placeholder="Max" min="1" max="5" oninput="app.renderDashboard()" style="width: 100%;">
+           </div>
+         </div>
+         <div style="flex: 1; min-width: 200px; background: white; padding: 15px; border-radius: 16px; border: 2px solid var(--border-color);">
+           <label style="font-weight: 800; color: var(--text-dark); display: block; margin-bottom: 10px;">Cost / Serving (₱)</label>
+           <div style="display: flex; gap: 10px;">
+             <input type="number" id="filterMinCost" placeholder="Min" oninput="app.renderDashboard()" style="width: 100%;">
+             <input type="number" id="filterMaxCost" placeholder="Max" oninput="app.renderDashboard()" style="width: 100%;">
+           </div>
+         </div>
+         <div style="flex: 1; min-width: 200px; background: white; padding: 15px; border-radius: 16px; border: 2px solid var(--border-color);">
+           <label style="font-weight: 800; color: var(--text-dark); display: block; margin-bottom: 10px;">Total Time (Mins)</label>
+           <div style="display: flex; gap: 10px;">
+             <input type="number" id="filterMinTime" placeholder="Min" oninput="app.renderDashboard()" style="width: 100%;">
+             <input type="number" id="filterMaxTime" placeholder="Max" oninput="app.renderDashboard()" style="width: 100%;">
+           </div>
+         </div>
+       </div>
+
+       <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+         <label style="font-weight: 900; color: var(--text-dark);">Sort By:</label>
+         <div class="custom-dropdown" id="browseSortColDropdown" onclick="this.classList.toggle('open')" style="width: 200px;">
+            <div class="dropdown-selected" id="browseSortColDisplay">Highest Rated</div>
+            <div class="dropdown-options">
+              <div onclick="app.selectDropdown('browseSortCol', 'rating', 'Highest Rated'); app.renderDashboard();">Highest Rated</div>
+              <div onclick="app.selectDropdown('browseSortCol', 'cost', 'Cost per Serving'); app.renderDashboard();">Cost per Serving</div>
+              <div onclick="app.selectDropdown('browseSortCol', 'time', 'Total Time'); app.renderDashboard();">Total Time</div>
+              <div onclick="app.selectDropdown('browseSortCol', 'alpha', 'Alphabetical'); app.renderDashboard();">Alphabetical</div>
+            </div>
+         </div>
+         <input type="hidden" id="browseSortCol" value="rating">
+
+         <div class="custom-dropdown" id="browseSortDirDropdown" onclick="this.classList.toggle('open')" style="width: 150px;">
+            <div class="dropdown-selected" id="browseSortDirDisplay">Descending</div>
+            <div class="dropdown-options">
+              <div onclick="app.selectDropdown('browseSortDir', 'desc', 'Descending'); app.renderDashboard();">Descending</div>
+              <div onclick="app.selectDropdown('browseSortDir', 'asc', 'Ascending'); app.renderDashboard();">Ascending</div>
+            </div>
+         </div>
+         <input type="hidden" id="browseSortDir" value="desc">
+         
+         <button class="btn-secondary" style="margin-left: auto;" onclick="app.clearFilters()">Clear Filters</button>
+       </div>
+    </div>
+
+    <!-- PANTRY FILTER -->
     <div id="pantryFilterSection" class="hidden" style="margin-bottom: 30px; padding: 30px; background: var(--bg-white); border-radius: 32px; border: 4px solid var(--border-color); box-shadow: 0 10px 0 0 var(--border-color);">
        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
          <div>
@@ -107,16 +153,13 @@
            <button class="btn-secondary" onclick="app.pantryClearGlobal()">Clear All</button>
          </div>
        </div>
-       
        <div id="pantryFilterList" style="display: flex; flex-direction: column; gap: 20px;"></div>
-       
        <div style="margin-top: 30px; display: flex; justify-content: flex-end; border-top: 3px dashed var(--border-color); padding-top: 25px;">
          <button class="btn-primary" style="font-size: 1.2rem; padding: 16px 35px; border-radius: 999px;" onclick="app.applyPantryFilter()">Show Matching Recipes</button>
        </div>
     </div>
 
-    <div class="recipe-grid" id="recipeGrid">
-      </div>
+    <div class="recipe-grid" id="recipeGrid"></div>
   </main>
 
   <main id="view-detail" class="view">
@@ -124,6 +167,8 @@
       <button class="btn-secondary" onclick="app.showView('view-dashboard')">← Back to Menu</button>
       <div style="display: flex; gap: 10px;">
         <button id="btnFavorite" class="btn-secondary" onclick="app.toggleFavorite()" style="border-color: #f59e0b; color: #f59e0b; box-shadow: 0 4px 0 0 #f59e0b;">⭐ Save</button>
+        <!-- NEW EXPORT BUTTON -->
+        <button class="btn-secondary" onclick="RzRecipe.exportCurrent()" style="border-color: var(--pop-orange); color: var(--pop-orange); box-shadow: 0 4px 0 0 var(--pop-orange);">💾 Export</button>
         <button class="btn-secondary" onclick="app.openShareCard()" style="border-color: var(--accent-cyan); color: var(--accent-cyan); box-shadow: 0 4px 0 0 var(--accent-cyan);">🔗 Share</button>
         <button class="btn-secondary" onclick="app.addRecipeToShoppingList()" style="border-color: #10B981; color: #10B981; box-shadow: 0 4px 0 0 #10B981;">🛒 Add to List</button>
         <button class="btn-secondary" onclick="window.print()" style="border-color: var(--text-dark); box-shadow: 0 4px 0 0 var(--text-dark);">🖨️ Print PDF</button>
@@ -133,18 +178,15 @@
     
     <div class="detail-content">
       <div id="detailImageBanner" style="width: 100%; height: 350px; background-size: cover; background-position: center; border-bottom: 4px solid var(--pop-orange); background-color: var(--bg-light);"></div>
-      
       <div class="detail-header">
         <h1 id="detailTitle">Recipe Name</h1>
-        
+        <h2 id="detailSecondaryName" style="color: var(--text-gray); font-size: 1.5rem; font-style: italic; margin-bottom: 15px; display: none;"></h2>
         <div id="detailAuthorInfo" style="display: flex; align-items: center; gap: 10px; margin-top: 15px; margin-bottom: 5px; cursor: pointer;">
            <img id="detailAuthorAvatar" src="" style="width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--border-color);">
            <span style="font-weight: 700; color: var(--text-gray); font-size: 1rem;">Created by <span id="detailAuthorName" style="color: var(--text-dark); font-weight: 900;">Chef</span></span>
         </div>
-        
         <div style="display: flex; gap: 15px; margin-top: 20px; align-items: center; flex-wrap: wrap;">
           <span class="category-tag" id="detailCategory">Category</span>
-          
           <div style="display: flex; align-items: center; gap: 8px; background: var(--bg-light); padding: 8px 15px; border-radius: 16px; border: 2px solid var(--border-color); box-shadow: 0 3px 0 0 var(--border-color);">
             <span style="font-weight: 800; font-size: 0.9rem; color: var(--text-gray);">Servings:</span>
             <button class="btn-secondary" style="padding: 4px 10px; font-size: 0.8rem; box-shadow: none; transform: none;" onclick="app.scaleServings(-1)">▼</button>
@@ -160,13 +202,11 @@
           <span class="stat-value"><span id="detailPrep">0</span>m + <span id="detailCook">0</span>m</span>
           <span style="font-size:0.85rem; font-weight:800; margin-top:5px;">TOTAL: <span id="detailTime">0</span>m</span>
         </div>
-        
         <div class="stat stat-colorful" style="background-color: #E4040F;">
           <span class="stat-label">RECIPE COST</span>
           <span class="stat-value">₱<span id="detailCost">0.00</span></span>
           <span style="font-size:0.85rem; font-weight:800; margin-top:5px;">₱<span id="detailCostPerServing">0.00</span> / serving</span>
         </div>
-        
         <div class="stat stat-colorful" style="background-color: #8E1B8A; flex: 2;">
           <span class="stat-label" style="margin-bottom: 15px;">MACROS (PER SERVING)</span>
           <div style="display: flex; gap: 15px; justify-content: space-around; width: 100%;">
@@ -203,10 +243,8 @@
 
       <div class="reviews-section" style="padding: 40px;">
         <h2>Community Ratings</h2>
-        
         <div id="reviewFormContainer" class="review-form" style="display: none;">
           <h3 style="color: var(--accent-cyan); font-size: 1.1rem; font-weight: 800;">Leave a Review</h3>
-          
           <div class="custom-dropdown" id="reviewRatingDropdown" onclick="this.classList.toggle('open')">
             <div class="dropdown-selected" id="reviewRatingDisplay">⭐⭐⭐⭐⭐ (5/5)</div>
             <div class="dropdown-options">
@@ -218,14 +256,12 @@
             </div>
           </div>
           <input type="hidden" id="reviewRating" value="5">
-
           <textarea id="reviewText" rows="3" placeholder="What did you think of this recipe?"></textarea>
           <button class="btn-primary" style="width: 200px;" onclick="app.submitReview()">Post Review</button>
         </div>
         <div id="loginPrompt" style="margin-bottom: 30px; font-weight: 800; color: var(--text-gray); background: #f0f0f0; padding: 20px; border-radius: 16px; text-align: center;">
           Login with Discord to leave a rating and comment!
         </div>
-
         <div id="reviewsList"></div>
       </div>
     </div>
@@ -251,15 +287,12 @@
         <button class="tab-btn" onclick="app.switchProfileTab('planner', this)">Weekly Plan</button>
         <button class="tab-btn" onclick="app.switchProfileTab('badges', this)">Badges</button>
       </div>
-
       <div id="tab-recipes" class="profile-tab-content">
         <div class="recipe-grid" id="profileRecipesGrid"></div>
       </div>
-
       <div id="tab-favorites" class="profile-tab-content hidden">
         <div class="recipe-grid" id="profileFavoritesGrid"></div>
       </div>
-
       <div id="tab-planner" class="profile-tab-content hidden">
         <p style="color: var(--text-gray); font-weight: 800; margin-bottom: 20px; font-size: 1.1rem;">Drag recipes from your Favorites list (below) into your weekly schedule!</p>
         <div class="planner-grid">
@@ -274,7 +307,6 @@
         <h3 style="margin-top: 30px; margin-bottom: 15px; color: var(--accent-cyan);">Your Favorites</h3>
         <div id="plannerFavoritesList" style="display: flex; gap: 15px; flex-wrap: wrap; padding: 20px; background: var(--bg-light); border-radius: 16px; border: 2px solid var(--border-color);"></div>
       </div>
-
       <div id="tab-badges" class="profile-tab-content hidden">
         <div class="badges-grid" id="profileBadgesGrid"></div>
       </div>
@@ -284,7 +316,11 @@
   <main id="view-editor" class="view">
     <div class="page-header">
       <h1 id="editorTitle" class="page-title">New Recipe</h1>
-      <div class="editor-actions">
+      <div class="editor-actions" style="display: flex; gap: 10px;">
+        <!-- NEW IMPORT BUTTON & INPUT -->
+        <input type="file" id="rzImportInput" accept=".rzrecipe" style="display: none;" onchange="RzRecipe.handleImport(event)">
+        <button class="btn-secondary" onclick="document.getElementById('rzImportInput').click()" style="border-color: var(--hint-purple); color: var(--hint-purple); box-shadow: 0 4px 0 0 var(--hint-purple);">📂 Import</button>
+        
         <button class="btn-secondary" onclick="app.cancelEdit()">Cancel</button>
         <button class="btn-primary" onclick="app.saveRecipe()">Save Recipe</button>
       </div>
@@ -297,6 +333,10 @@
         <div class="form-group flex-2">
           <label>Item Name</label>
           <input type="text" id="editName" placeholder="e.g. Classic Fried Chicken">
+        </div>
+        <div class="form-group flex-1">
+          <label>Secondary / Native Name</label>
+          <input type="text" id="editSecondaryName" placeholder="Optional (e.g. Adobo)">
         </div>
         <div class="form-group flex-1">
           <label>Tags (Comma Separated)</label>
@@ -332,8 +372,7 @@
       <div class="form-group" style="border: 2px solid var(--border-color); padding: 25px; border-radius: 20px; background: #fafbfc; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
         <label style="color: var(--text-dark); font-size: 1.2rem; margin-bottom: 20px; font-weight: 800;">Ingredient Manager</label>
         
-        <div id="editorIngredientsContainer" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 25px;">
-          </div>
+        <div id="editorIngredientsContainer" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px;"></div>
         
         <div style="display: flex; gap: 15px;">
           <button class="btn-secondary" onclick="app.addEditorIngredient('ingredient')">+ Add Ingredient</button>
@@ -367,13 +406,9 @@
   </main>
 
   <main id="view-ingredients" class="view">
-    <div class="page-header">
-      <h1 class="page-title">Ingredient List</h1>
-    </div>
-
+    <div class="page-header"><h1 class="page-title">Ingredient List</h1></div>
     <div class="editor-form" style="margin-bottom: 40px; border-color: var(--accent-cyan); box-shadow: 0 8px 0 0 var(--accent-cyan);">
         <h3 style="margin-bottom: 25px; font-size: 1.5rem; color: var(--accent-cyan);">+ Register New Ingredient</h3>
-        
         <div class="form-row">
           <div class="form-group flex-2">
             <label>Ingredient Name</label>
@@ -386,7 +421,6 @@
             <label>Store Amount & Unit</label>
             <div style="display: flex; gap: 10px;">
               <input type="number" id="ingAmount" placeholder="Qty" style="width: 50%;" oninput="app.calcMacrosUI()">
-              
               <div class="custom-dropdown" id="ingUnitDropdown" onclick="this.classList.toggle('open')" style="width: 50%;">
                 <div class="dropdown-selected" id="ingUnitDisplay">g</div>
                 <div class="dropdown-options">
@@ -404,15 +438,10 @@
                 </div>
               </div>
               <input type="hidden" id="ingUnit" value="g">
-
             </div>
           </div>
-          <div class="form-group flex-1">
-            <label>Store Cost (₱)</label>
-            <input type="number" id="ingCost" placeholder="e.g. 150">
-          </div>
+          <div class="form-group flex-1"><label>Store Cost (₱)</label><input type="number" id="ingCost" placeholder="e.g. 150"></div>
         </div>
-
         <div class="form-row">
           <div class="form-group flex-1">
             <label>Category</label>
@@ -421,64 +450,27 @@
               <div class="autocomplete-dropdown"></div>
             </div>
           </div>
-          <div class="form-group flex-1">
-            <label>Subcategory</label>
-            <input type="text" id="ingSubcategory" placeholder="Optional">
-          </div>
-          <div class="form-group flex-2">
-            <label>Notes</label>
-            <input type="text" id="ingNotes" placeholder="Brand names, store bought from, etc.">
-          </div>
+          <div class="form-group flex-1"><label>Subcategory</label><input type="text" id="ingSubcategory" placeholder="Optional"></div>
+          <div class="form-group flex-2"><label>Notes</label><input type="text" id="ingNotes" placeholder="Brand names, store bought from, etc."></div>
         </div>
-
         <h4 style="margin: 10px 0 20px 0; color: var(--text-dark); font-size: 1.2rem;">Store Amount Macros</h4>
         <div class="form-row" style="background: var(--bg-light); padding: 20px; border-radius: 16px; border: 2px solid var(--border-color);">
-          <div class="form-group flex-1">
-            <label>Total Calories</label>
-            <input type="number" id="ingCal" placeholder="e.g. 500" step="any" oninput="app.calcMacrosUI()">
-            <small id="ingCalSub" style="color: var(--text-gray); font-size: 0.75rem; margin-top: 6px; font-weight: 700;">0 per unit</small>
-          </div>
-          <div class="form-group flex-1">
-            <label>Total Carbs (g)</label>
-            <input type="number" id="ingCarb" placeholder="e.g. 50" step="any" oninput="app.calcMacrosUI()">
-            <small id="ingCarbSub" style="color: var(--text-gray); font-size: 0.75rem; margin-top: 6px; font-weight: 700;">0g per unit</small>
-          </div>
-          <div class="form-group flex-1">
-            <label>Total Protein (g)</label>
-            <input type="number" id="ingPro" placeholder="e.g. 20" step="any" oninput="app.calcMacrosUI()">
-            <small id="ingProSub" style="color: var(--text-gray); font-size: 0.75rem; margin-top: 6px; font-weight: 700;">0g per unit</small>
-          </div>
-          <div class="form-group flex-1">
-            <label>Total Fat (g)</label>
-            <input type="number" id="ingFat" placeholder="e.g. 10" step="any" oninput="app.calcMacrosUI()">
-            <small id="ingFatSub" style="color: var(--text-gray); font-size: 0.75rem; margin-top: 6px; font-weight: 700;">0g per unit</small>
-          </div>
+          <div class="form-group flex-1"><label>Total Calories</label><input type="number" id="ingCal" placeholder="e.g. 500" step="any" oninput="app.calcMacrosUI()"><small id="ingCalSub" style="color: var(--text-gray); font-size: 0.75rem; margin-top: 6px; font-weight: 700;">0 per unit</small></div>
+          <div class="form-group flex-1"><label>Total Carbs (g)</label><input type="number" id="ingCarb" placeholder="e.g. 50" step="any" oninput="app.calcMacrosUI()"><small id="ingCarbSub" style="color: var(--text-gray); font-size: 0.75rem; margin-top: 6px; font-weight: 700;">0g per unit</small></div>
+          <div class="form-group flex-1"><label>Total Protein (g)</label><input type="number" id="ingPro" placeholder="e.g. 20" step="any" oninput="app.calcMacrosUI()"><small id="ingProSub" style="color: var(--text-gray); font-size: 0.75rem; margin-top: 6px; font-weight: 700;">0g per unit</small></div>
+          <div class="form-group flex-1"><label>Total Fat (g)</label><input type="number" id="ingFat" placeholder="e.g. 10" step="any" oninput="app.calcMacrosUI()"><small id="ingFatSub" style="color: var(--text-gray); font-size: 0.75rem; margin-top: 6px; font-weight: 700;">0g per unit</small></div>
         </div>
-
         <button class="btn-primary" style="background-color: var(--accent-cyan); box-shadow: 0 4px 0 0 #008b92;" onclick="app.saveIngredient()">Add Ingredient</button>
     </div>
-
     <div class="table-container">
       <div style="width: 100%; overflow-x: auto;">
         <table style="width: 100%; text-align: left; border-collapse: collapse; white-space: nowrap;">
           <thead>
             <tr style="border-bottom: 3px solid var(--border-color); color: var(--text-gray); font-size: 0.9rem;">
-              <th style="padding: 15px; width: 50px;">CAT</th>
-              <th style="padding: 15px; cursor: pointer; user-select: none;" onclick="app.sortTable('name')">
-                NAME <span id="sortIcon-name"></span>
-              </th>
-              <th style="padding: 15px; cursor: pointer; user-select: none;" onclick="app.sortTable('category')">
-                CATEGORY <span id="sortIcon-category"></span>
-              </th>
-              <th style="padding: 15px;">UNIT</th>
-              <th style="padding: 15px; cursor: pointer; user-select: none;" onclick="app.sortTable('cost_per_unit')">
-                UNIT COST <span id="sortIcon-cost_per_unit"></span>
-              </th>
-              <th style="padding: 15px;">MACROS PER UNIT</th>
+              <th style="padding: 15px; width: 50px;">CAT</th><th style="padding: 15px; cursor: pointer; user-select: none;" onclick="app.sortTable('name')">NAME <span id="sortIcon-name"></span></th><th style="padding: 15px; cursor: pointer; user-select: none;" onclick="app.sortTable('category')">CATEGORY <span id="sortIcon-category"></span></th><th style="padding: 15px;">UNIT</th><th style="padding: 15px; cursor: pointer; user-select: none;" onclick="app.sortTable('cost_per_unit')">UNIT COST <span id="sortIcon-cost_per_unit"></span></th><th style="padding: 15px;">MACROS PER UNIT</th>
             </tr>
           </thead>
-          <tbody id="ingredientsTableBody">
-            </tbody>
+          <tbody id="ingredientsTableBody"></tbody>
         </table>
       </div>
     </div>
@@ -509,13 +501,7 @@
     <div class="table-container" style="padding: 25px;">
       <div style="min-width: 700px;">
         <div style="display: grid; grid-template-columns: 40px 3fr 1fr 60px 1fr 1fr 50px; gap: 15px; font-weight: 800; color: var(--text-gray); font-size: 0.9rem; border-bottom: 3px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px;">
-          <div style="text-align: center;">✓</div>
-          <div>ITEM</div>
-          <div>QTY</div>
-          <div>UNIT</div>
-          <div>EST. COST</div>
-          <div>ACTUAL PRICE</div>
-          <div></div>
+          <div style="text-align: center;">✓</div><div>ITEM</div><div>QTY</div><div>UNIT</div><div>EST. COST</div><div>ACTUAL PRICE</div><div></div>
         </div>
         <div id="shoppingListContainer"></div>
         <div style="margin-top: 25px; border-top: 3px solid var(--border-color); padding-top: 20px; display: flex; justify-content: flex-end; gap: 50px; font-size: 1.3rem;">
@@ -534,7 +520,6 @@
           <h2 id="shareCardTitle">Recipe Title</h2>
           <p id="shareCardTags">Tags</p>
         </div>
-        
         <div class="flip-container" onclick="this.classList.toggle('flipped')">
           <div class="flipper">
             <div class="front">
@@ -548,11 +533,9 @@
             </div>
           </div>
         </div>
-
         <div class="share-card-footer">
           <div class="share-price">
-            <span class="price-val">₱<span id="shareCardCost">0.00</span></span>
-            <span class="price-label">/ serving</span>
+            <span class="price-val">₱<span id="shareCardCost">0.00</span></span><span class="price-label">/ serving</span>
           </div>
           <div class="share-macros">
             <div><span id="shareCardCal">0</span><small>CAL</small></div>
@@ -569,14 +552,15 @@
     <div class="custom-modal">
       <h2 id="customModalTitle" style="color: var(--text-dark); font-size: 1.8rem; margin-bottom: 10px;">Notice</h2>
       <p id="customModalMessage" style="color: var(--text-gray); font-size: 1.1rem; font-weight: 700; margin-bottom: 30px;"></p>
-      <div id="customModalActions" style="display: flex; gap: 15px; justify-content: center;">
-      </div>
+      <div id="customModalActions" style="display: flex; gap: 15px; justify-content: center;"></div>
     </div>
   </div>
 
   <div id="toastContainer" class="toast-container"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=4.2"></script>
+  <script src="app.js?v=6.0"></script>
+  <!-- NEW RZRECIPE IMPORTER FILE -->
+  <script src="rzrecipe.js?v=1.0"></script>
 </body>
 </html>

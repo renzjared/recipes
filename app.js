@@ -152,27 +152,38 @@ const app = {
 
     let sourceData = [];
     if (type === 'ingredient') {
-       sourceData = [...new Set(this.ingredientsRegistry.map(i => i.name))];
+       sourceData = [...new Set(this.ingredientsRegistry.map(i => i.name))].sort();
+       let matches = sourceData;
+       if (val) matches = matches.filter(name => name.toLowerCase().includes(val));
+       matches = matches.slice(0, 15);
+       
+       if (matches.length > 0) {
+         dropdown.innerHTML = matches.map(m => `<div class="autocomplete-item" onmousedown="app.selectAutocomplete(event, this, '${m.replace(/'/g, "\\'")}', false)">${m}</div>`).join('');
+         dropdown.classList.add('show');
+       } else {
+         dropdown.classList.remove('show');
+       }
     } else if (type === 'category') {
        const allTags = new Set();
        this.recipes.forEach(r => {
          if(r.category) r.category.split(',').forEach(t => allTags.add(t.trim()));
        });
-       sourceData = [...allTags];
-    }
-
-    let matches = sourceData;
-    if (val) {
-      matches = matches.filter(name => name.toLowerCase().includes(val));
-    }
-
-    matches = matches.slice(0, 15);
-
-    if (matches.length > 0) {
-      dropdown.innerHTML = matches.map(m => `<div class="autocomplete-item" onmousedown="app.selectAutocomplete(event, this, '${m.replace(/'/g, "\\'")}')">${m}</div>`).join('');
-      dropdown.classList.add('show');
-    } else {
-      dropdown.classList.remove('show');
+       sourceData = [...allTags].sort();
+       
+       const currentVals = input.value.split(',').map(v => v.trim()).filter(Boolean);
+       const currentLower = currentVals.map(v => v.toLowerCase());
+       
+       if (sourceData.length > 0) {
+         dropdown.innerHTML = sourceData.map(m => {
+           const isSelected = currentLower.includes(m.toLowerCase());
+           const checkMark = isSelected ? '<span style="color: var(--accent-cyan); float: right; font-weight: 900;">✓</span>' : '';
+           const bgClass = isSelected ? 'background: var(--cyan-light);' : '';
+           return `<div class="autocomplete-item" style="${bgClass}" onmousedown="app.selectAutocomplete(event, this, '${m.replace(/'/g, "\\'")}', true)">${m}${checkMark}</div>`;
+         }).join('');
+         dropdown.classList.add('show');
+       } else {
+         dropdown.classList.remove('show');
+       }
     }
   },
   
@@ -183,17 +194,38 @@ const app = {
      }
   },
   
-  selectAutocomplete: function(e, itemElem, name) {
+  selectAutocomplete: function(e, itemElem, name, isMulti = false) {
      e.preventDefault(); 
      const input = itemElem.parentElement.previousElementSibling;
-     input.value = name;
+
+     if (isMulti) {
+       let currentVals = input.value.split(',').map(v => v.trim()).filter(Boolean);
+       const lowerVals = currentVals.map(v => v.toLowerCase());
+       const nameIdx = lowerVals.indexOf(name.toLowerCase());
+       
+       if (nameIdx > -1) {
+         currentVals.splice(nameIdx, 1);
+       } else {
+         if (currentVals.length > 0) {
+            const last = currentVals[currentVals.length - 1];
+            if (name.toLowerCase().startsWith(last.toLowerCase())) {
+               currentVals.pop();
+            }
+         }
+         currentVals.push(name);
+       }
+       input.value = currentVals.join(', ') + (currentVals.length > 0 ? ', ' : '');
+       
+       this.filterAutocomplete(input, 'category');
+     } else {
+       input.value = name;
+       itemElem.parentElement.classList.remove('show');
+     }
      
      const evt1 = new Event('input', { bubbles: true });
      input.dispatchEvent(evt1);
      const evt2 = new Event('change', { bubbles: true });
      input.dispatchEvent(evt2);
-     
-     itemElem.parentElement.classList.remove('show');
   },
 
   updateUserUI: function(user) {
@@ -430,13 +462,51 @@ const app = {
     }
   },
 
-  fetchRecipes: async function() {
+fetchRecipes: async function() {
     const { data, error } = await client.from('recipes').select(`
       *,
-      recipe_ingredients ( qty, ingredients ( cost_per_unit, name ) )
+      recipe_ingredients ( qty, ingredients ( cost_per_unit, name ) ),
+      recipe_reviews ( rating )
     `).order('name');
     
-    if (!error) this.recipes = data;
+    if (!error && data) {
+      this.recipes = data.map(r => {
+        let baseCost = 0;
+        if (r.recipe_ingredients) {
+          r.recipe_ingredients.forEach(m => {
+            if (m.ingredients) {
+               const qty = parseFloat(m.qty) || 0;
+               const cpu = parseFloat(m.ingredients.cost_per_unit) || 0;
+               baseCost += (qty * cpu);
+            }
+          });
+        }
+        
+        const servings = parseFloat(r.servings) || 1;
+        r.costPerServing = baseCost / servings;
+        if (isNaN(r.costPerServing) || !isFinite(r.costPerServing)) r.costPerServing = 0;
+
+        const prep = parseFloat(r.prep_time) || 0;
+        const cook = parseFloat(r.cook_time) || 0;
+        r.totalTime = prep + cook;
+        if (isNaN(r.totalTime)) r.totalTime = 0;
+
+        const revs = r.recipe_reviews || [];
+        if (revs.length > 0) {
+           let sum = 0;
+           let count = 0;
+           revs.forEach(rev => {
+              const rat = parseFloat(rev.rating);
+              if (!isNaN(rat)) { sum += rat; count++; }
+           });
+           r.avgRating = count > 0 ? (sum / count) : 0;
+        } else {
+           r.avgRating = 0;
+        }
+        
+        return r;
+      });
+    }
   },
 
   createRecipeCardHTML: function(recipe) {
@@ -446,16 +516,9 @@ const app = {
     const rawImg = (recipe.image_url || '').trim().toLowerCase();
     const isValidImg = rawImg.length > 5 && rawImg.startsWith('http');
     const bgImage = isValidImg ? recipe.image_url.trim() : 'https://placehold.co/600x400/eeeeee/999999?text=No+Image';
-    const totalTime = (recipe.prep_time || 0) + (recipe.cook_time || 0);
-    
-    let baseCost = 0;
-    if (recipe.recipe_ingredients) {
-      recipe.recipe_ingredients.forEach(mapping => {
-        if (mapping.ingredients) baseCost += (mapping.qty * parseFloat(mapping.ingredients.cost_per_unit || 0));
-      });
-    }
-    const costPerServing = (baseCost / (recipe.servings || 1)).toFixed(2);
     const tagsDisplay = (recipe.category || 'Uncategorized').split(',').map(t => t.trim()).join(' • ');
+
+    const ratingDisplay = recipe.avgRating > 0 ? `⭐ ${recipe.avgRating.toFixed(1)}` : `⭐ -`;
 
     return `
       <div class="recipe-card" onclick="app.openDetail('${recipe.id}')">
@@ -463,13 +526,16 @@ const app = {
           ${ownerBadge}
         </div>
         <div class="card-content">
-          <h3 class="card-title" style="margin-bottom: 5px;">${recipe.name}</h3>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
+            <h3 class="card-title" style="margin: 0;">${recipe.name}</h3>
+            <span style="font-weight: 900; color: #f59e0b;">${ratingDisplay}</span>
+          </div>
           <div style="font-size: 0.85rem; color: var(--text-gray); font-weight: 700; margin-bottom: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             ${tagsDisplay}
           </div>
           <div class="card-meta">
-            <span>🕒 ${totalTime} MIN</span>
-            <span style="color: var(--text-dark); font-weight: 900; font-size: 1.1rem;">₱${costPerServing}</span>
+            <span>🕒 ${recipe.totalTime} MIN</span>
+            <span style="color: var(--text-dark); font-weight: 900; font-size: 1.1rem;">₱${recipe.costPerServing.toFixed(2)}</span>
           </div>
         </div>
       </div>
@@ -511,17 +577,6 @@ const app = {
     if (!container) return;
     container.innerHTML = ''; 
 
-    const getCost = (r) => {
-      let baseCost = 0;
-      if (r.recipe_ingredients) {
-        r.recipe_ingredients.forEach(m => {
-          if (m.ingredients) baseCost += (m.qty * parseFloat(m.ingredients.cost_per_unit || 0));
-        });
-      }
-      return baseCost / (parseFloat(r.servings) || 1);
-    };
-    const getTime = (r) => (Number(r.prep_time) || 0) + (Number(r.cook_time) || 0);
-
     const renderSection = (title, icon, recipesToRender) => {
       if (recipesToRender.length === 0) return;
       container.innerHTML += `
@@ -534,14 +589,14 @@ const app = {
       `;
     };
 
-    let cheapRecipes = [...this.recipes].filter(r => getCost(r) > 0).sort((a, b) => getCost(a) - getCost(b)).slice(0, 3);
-    renderSection('Cheap Eats', '', cheapRecipes);
+    let cheapRecipes = [...this.recipes].filter(r => r.costPerServing > 0).sort((a, b) => a.costPerServing - b.costPerServing).slice(0, 3);
+    renderSection('Cheap Eats', '💸', cheapRecipes);
 
-    let quickRecipes = [...this.recipes].filter(r => getTime(r) > 0).sort((a, b) => getTime(a) - getTime(b)).slice(0, 3);
-    renderSection('Quick Bites', '', quickRecipes);
+    let quickRecipes = [...this.recipes].filter(r => r.totalTime > 0).sort((a, b) => a.totalTime - b.totalTime).slice(0, 3);
+    renderSection('Quick Bites', '⚡', quickRecipes);
 
     let airfryerRecipes = this.recipes.filter(r => (r.category || '').toLowerCase().includes('air-fryer') || (r.category || '').toLowerCase().includes('airfryer')).slice(0, 3);
-    renderSection('Air-Fryer', '', airfryerRecipes);
+    renderSection('Air-Fryer Goodness', '💨', airfryerRecipes);
 
     const categoryCounts = {};
     this.recipes.forEach(r => {
@@ -554,10 +609,10 @@ const app = {
       });
     });
 
-    const sortedTags = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a]).slice(0, 5);
+    const sortedTags = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a]).slice(0, 2);
     sortedTags.forEach(tag => {
       const tagRecipes = this.recipes.filter(r => (r.category || '').toLowerCase().includes(tag.toLowerCase())).slice(0, 3);
-      const icons = [''];
+      const icons = ['🔥', '✨', '😋', '🌟', '👨‍🍳', '🍲', '❤️'];
       const randIcon = icons[Math.floor(Math.random() * icons.length)];
       renderSection(`Top Rated: ${tag}`, randIcon, tagRecipes);
     });
@@ -642,6 +697,22 @@ const app = {
     this.renderDashboard();
   },
 
+clearFilters: function() {
+    // Clear range inputs
+    ['filterMinRating', 'filterMaxRating', 'filterMinCost', 'filterMaxCost', 'filterMinTime', 'filterMaxTime'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    
+    // Reset dropdowns
+    this.selectDropdown('browseSortCol', 'rating', 'Highest Rated');
+    this.selectDropdown('browseSortDir', 'desc', 'Descending');
+    
+    // Clear pantry filter and execute render
+    this.pantryClearGlobal();
+    this.applyPantryFilter();
+  },
+
   renderDashboard: function() {
     const grid = document.getElementById('recipeGrid');
     const nav = document.getElementById('categoryNav');
@@ -673,6 +744,13 @@ const app = {
     });
 
     const searchVal = this.currentSearch.toLowerCase();
+    
+    const minRating = parseFloat(document.getElementById('filterMinRating')?.value) || 0;
+    const maxRating = parseFloat(document.getElementById('filterMaxRating')?.value) || 5;
+    const minCost = parseFloat(document.getElementById('filterMinCost')?.value) || 0;
+    const maxCost = parseFloat(document.getElementById('filterMaxCost')?.value) || 999999;
+    const minTime = parseFloat(document.getElementById('filterMinTime')?.value) || 0;
+    const maxTime = parseFloat(document.getElementById('filterMaxTime')?.value) || 999999;
 
     const filtered = this.recipes.filter(r => {
       const catString = r.category || 'Uncategorized';
@@ -681,28 +759,61 @@ const app = {
       const matchCatNav = this.currentCategory === 'All' || recipeTags.includes(this.currentCategory);
       
       const matchSearch = r.name.toLowerCase().includes(searchVal) ||
+                          (r.secondary_name || '').toLowerCase().includes(searchVal) ||
                           catString.toLowerCase().includes(searchVal) ||
                           (r.author_name || '').toLowerCase().includes(searchVal);
 
       let matchPantry = true;
       if (this.pantrySelection.length > 0) {
-        const recipeIngs = r.recipe_ingredients 
+        const pantryLower = this.pantrySelection.map(p => p.toLowerCase().trim());
+        
+        let reqIngs = r.recipe_ingredients 
           ? r.recipe_ingredients.map(m => m.ingredients ? m.ingredients.name.toLowerCase().trim() : '').filter(Boolean) 
           : [];
-        
-        if (recipeIngs.length > 0) {
-          const pantrySet = new Set(this.pantrySelection.map(p => p.toLowerCase().trim()));
-          matchPantry = recipeIngs.every(req => pantrySet.has(req));
+          
+        if (reqIngs.length === 0 && r.raw_ingredients) {
+          reqIngs = r.raw_ingredients.split('\n')
+            .filter(line => line.trim() && !line.trim().startsWith('['))
+            .map(line => {
+              if (line.startsWith('#RICH#')) return line.split(' | ')[3].toLowerCase().trim();
+              const match = line.trim().match(/^[\d.\/]+\s*[a-zA-Z]*\s+(.*)$/);
+              return match ? match[1].toLowerCase().trim() : line.toLowerCase().trim();
+            });
+        }
+
+        if (reqIngs.length > 0) {
+          matchPantry = reqIngs.every(req => 
+            pantryLower.some(pItem => req.includes(pItem) || pItem.includes(req))
+          );
         } else {
-          matchPantry = false;
+          matchPantry = false; 
         }
       }
 
-      return matchCatNav && matchSearch && matchPantry;
+      const matchRating = r.avgRating >= minRating && r.avgRating <= maxRating;
+      const matchCost = r.costPerServing >= minCost && r.costPerServing <= maxCost;
+      const matchTime = r.totalTime >= minTime && r.totalTime <= maxTime;
+
+      return matchCatNav && matchSearch && matchPantry && matchRating && matchCost && matchTime;
+    });
+
+    const sortCol = document.getElementById('browseSortCol')?.value || 'rating';
+    const sortDir = document.getElementById('browseSortDir')?.value === 'asc' ? 1 : -1;
+
+    filtered.sort((a, b) => {
+      let valA, valB;
+      if (sortCol === 'rating') { valA = a.avgRating; valB = b.avgRating; }
+      else if (sortCol === 'cost') { valA = a.costPerServing; valB = b.costPerServing; }
+      else if (sortCol === 'time') { valA = a.totalTime; valB = b.totalTime; }
+      else if (sortCol === 'alpha') { valA = a.name.toLowerCase(); valB = b.name.toLowerCase(); }
+
+      if (valA < valB) return -1 * sortDir;
+      if (valA > valB) return 1 * sortDir;
+      return a.name.localeCompare(b.name); 
     });
 
     if (filtered.length === 0) {
-      grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; font-weight: 800; color: #666; font-size: 1.2rem; padding: 40px;">No recipes found.</div>';
+      grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; font-weight: 800; color: #666; font-size: 1.2rem; padding: 40px;">No recipes found matching your filters.</div>';
       return;
     }
 
@@ -905,6 +1016,15 @@ const app = {
     document.getElementById('detailImageBanner').style.backgroundImage = `url('${bgImage}')`;
 
     document.getElementById('detailTitle').textContent = recipe.name;
+    
+    const secNameEl = document.getElementById('detailSecondaryName');
+    if (recipe.secondary_name) {
+      secNameEl.textContent = recipe.secondary_name;
+      secNameEl.style.display = 'block';
+    } else {
+      secNameEl.style.display = 'none';
+    }
+
     document.getElementById('detailCategory').textContent = recipe.category || "Unclassified";
     document.getElementById('detailPrep').textContent = recipe.prep_time || 0;
     document.getElementById('detailCook').textContent = recipe.cook_time || 0;
@@ -974,6 +1094,9 @@ const app = {
     document.getElementById('detailFat').textContent = (baseFat / baseServings).toFixed(1);
 
     let ingredientsHTML = '';
+    let alternativesHTML = '';
+    let hasAlternatives = false;
+
     if (recipe.raw_ingredients) {
       ingredientsHTML = recipe.raw_ingredients.split('\n').map(line => {
         const trimmed = line.trim();
@@ -983,39 +1106,113 @@ const app = {
           return `<li style="list-style: none; color: var(--pop-orange); font-weight: 900; margin-top: 20px; margin-bottom: 8px; border-bottom: 3px solid var(--border-color); padding-bottom: 4px; font-size: 1.1rem;">${trimmed.slice(1, -1)}</li>`;
         }
         
-        const match = trimmed.match(/^([\d.\/]+)\s*([a-zA-Z]+)?\s+(.*)$/);
-        
-        if (match) {
-          let originalQty = 1;
-          if (match[1].includes('/')) {
-              const [num, den] = match[1].split('/');
-              originalQty = (parseFloat(num) / parseFloat(den)) || 1;
-          } else {
-              originalQty = parseFloat(match[1]) || 1;
-          }
+        let originalQty = 1;
+        let unit = '';
+        let name = '';
+        let desc = '';
+        let alts = [];
 
-          const scaledQty = +(originalQty * ratio).toFixed(2);
-          const unit = match[2] ? match[2].trim() : '';
-          const name = match[3].trim();
-
-          let unitCost = 0;
-          if (recipe.recipe_ingredients) {
-            const mapItem = recipe.recipe_ingredients.find(m => m.ingredients.name.toLowerCase() === name.toLowerCase());
-            if (mapItem) unitCost = parseFloat(mapItem.ingredients.cost_per_unit || 0);
-          }
-          const lineCost = (scaledQty * unitCost).toFixed(2);
-          
-          return `<li style="display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 0; border-bottom: 2px dashed var(--border-color);">
-                    <div style="display: flex; gap: 15px; flex: 1;">
-                      <span style="color: var(--accent-cyan); font-weight: 900; font-size: 1.1rem; min-width: 80px; text-align: right;">${scaledQty} ${unit}</span>
-                      <span style="font-weight: 700; color: var(--text-dark); font-size: 1.05rem;">${name}</span>
-                    </div>
-                    <span style="font-weight: 800; color: var(--text-gray); font-size: 1rem; min-width: 70px; text-align: right;">₱${lineCost}</span>
-                  </li>`;
+        if (trimmed.startsWith('#RICH#')) {
+           const parts = trimmed.split(' | ');
+           originalQty = parseFloat(parts[1]) || 1;
+           unit = parts[2] || '';
+           name = parts[3] || '';
+           desc = parts[4] || '';
+           try { alts = JSON.parse(parts[5] || '[]'); } catch(e){}
+        } else {
+           const match = trimmed.match(/^([\d.\/]+)\s*([a-zA-Z]+)?\s+(.*)$/);
+           if (match) {
+             if (match[1].includes('/')) {
+                 const [num, den] = match[1].split('/');
+                 originalQty = (parseFloat(num) / parseFloat(den)) || 1;
+             } else {
+                 originalQty = parseFloat(match[1]) || 1;
+             }
+             unit = match[2] ? match[2].trim() : '';
+             name = match[3].trim();
+           } else {
+             name = trimmed;
+           }
         }
-        return `<li style="padding: 12px 0; font-weight: 600; font-size: 1.05rem;">${trimmed}</li>`;
+
+        const scaledQty = +(originalQty * ratio).toFixed(2);
+        
+        let unitCost = 0;
+        if (recipe.recipe_ingredients) {
+          const mapItem = recipe.recipe_ingredients.find(m => m.ingredients.name.toLowerCase() === name.toLowerCase());
+          if (mapItem) unitCost = parseFloat(mapItem.ingredients.cost_per_unit || 0);
+        }
+        const lineCost = (scaledQty * unitCost).toFixed(2);
+
+let tooltipDOM = '';
+        if (alts.length > 0) {
+           hasAlternatives = true;
+
+           // 1. Tooltip HTML formatted as a mini table
+           let tooltipTable = `<div style="text-align: left; padding: 5px;">
+              <div style="color: var(--pop-orange); margin-bottom: 8px; font-weight: 900; border-bottom: 2px solid rgba(255,255,255,0.2); padding-bottom: 4px;">Substitutes:</div>
+              <ul style="list-style: none; padding: 0; margin: 0;">
+                ${alts.map(a => {
+                   let aQty = +(parseFloat(a.qty) * ratio).toFixed(2);
+                   let aDesc = a.desc ? ` <span style="font-weight: normal; font-style: italic; opacity: 0.8; font-size: 0.8rem;">(${a.desc})</span>` : '';
+                   return `<li style="display: flex; gap: 12px; margin-bottom: 6px;">
+                             <span style="color: var(--accent-cyan); font-weight: 900; min-width: 50px; text-align: right;">${aQty} ${a.unit}</span>
+                             <span style="font-weight: 700; color: white;">${a.name}${aDesc}</span>
+                           </li>`;
+                }).join('')}
+              </ul>
+           </div>`;
+
+           tooltipDOM = `<div class="tooltip-content">${tooltipTable}</div>`;
+
+           // 2. Main Panel alternatives formatted matching the main ingredient list
+           alternativesHTML += `
+              <div style="margin-bottom: 15px;">
+                <div style="font-weight: 900; color: var(--text-dark); margin-bottom: 5px; font-size: 1.05rem;">${name}:</div>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                  ${alts.map(a => {
+                     let aQty = +(parseFloat(a.qty) * ratio).toFixed(2);
+                     let aDesc = a.desc ? ` <span style="font-weight: normal; font-style: italic; color: #9ca3af; font-size: 0.95rem;">(${a.desc})</span>` : '';
+                     return `<li style="display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 1px dashed var(--border-color);">
+                               <div style="display: flex; gap: 15px; flex: 1;">
+                                 <span style="color: var(--accent-cyan); font-weight: 900; font-size: 1.1rem; min-width: 80px; text-align: right;">${aQty} ${a.unit}</span>
+                                 <span style="font-weight: 700; color: var(--text-dark); font-size: 1.05rem;">${a.name}${aDesc}</span>
+                               </div>
+                             </li>`;
+                  }).join('')}
+                </ul>
+              </div>
+           `;
+        }
+
+        let tooltipAttr = alts.length > 0 ? `class="tooltip-container"` : '';
+        let altBadge = alts.length > 0 ? ` <span style="font-size: 0.75rem; background: var(--cyan-light); color: var(--accent-cyan); padding: 2px 6px; border-radius: 8px; font-weight: 900; vertical-align: middle;">ALT</span>` : '';
+        let descDOM = desc ? ` <span style="font-weight: normal; font-style: italic; color: #9ca3af; font-size: 0.95rem;">(${desc})</span>` : '';
+          
+        return `<li style="display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 0; border-bottom: 2px dashed var(--border-color);">
+                  <div style="display: flex; gap: 15px; flex: 1;">
+                    <span style="color: var(--accent-cyan); font-weight: 900; font-size: 1.1rem; min-width: 80px; text-align: right;">${scaledQty} ${unit}</span>
+                    <span ${tooltipAttr} style="font-weight: 700; color: var(--text-dark); font-size: 1.05rem;">
+                       ${name}${descDOM}${tooltipDOM}${altBadge}
+                    </span>
+                  </div>
+                  <span style="font-weight: 800; color: var(--text-gray); font-size: 1rem; min-width: 70px; text-align: right;">₱${lineCost}</span>
+                </li>`;
       }).join('');
     }
+
+    if (hasAlternatives) {
+       ingredientsHTML += `
+         <div style="margin-top: 25px;">
+            <button class="btn-secondary" onclick="document.getElementById('altsSectionPanel').classList.toggle('open')" style="width: 100%; border-color: var(--accent-cyan); color: var(--accent-cyan);">View Alternatives 🔄</button>
+            <div id="altsSectionPanel" class="alts-section">
+               <h4 style="margin-bottom: 15px; color: var(--text-dark); font-size: 1.1rem;">Ingredient Substitutes</h4>
+               ${alternativesHTML}
+            </div>
+         </div>
+       `;
+    }
+
     document.getElementById('detailIngredients').innerHTML = ingredientsHTML || '<li>No ingredients specified.</li>';
   },
 
@@ -1121,12 +1318,26 @@ const app = {
     }
 
     const recipeIds = favs.map(f => f.recipe_id);
-    const { data: recipes } = await client.from('recipes').select('*').in('id', recipeIds);
+    const { data: recipes } = await client.from('recipes').select(`
+      *,
+      recipe_ingredients ( qty, ingredients ( cost_per_unit, name ) ),
+      recipe_reviews ( rating )
+    `).in('id', recipeIds);
     
     if(recipes) {
-        grid.innerHTML = recipes.map(r => this.createRecipeCardHTML(r)).join('');
+        const preppedRecipes = recipes.map(r => {
+           let baseCost = 0;
+           if (r.recipe_ingredients) r.recipe_ingredients.forEach(m => { if (m.ingredients) baseCost += (m.qty * parseFloat(m.ingredients.cost_per_unit || 0)); });
+           r.costPerServing = baseCost / (parseFloat(r.servings) || 1);
+           r.totalTime = (Number(r.prep_time) || 0) + (Number(r.cook_time) || 0);
+           const revs = r.recipe_reviews || [];
+           r.avgRating = revs.length > 0 ? (revs.reduce((sum, rev) => sum + rev.rating, 0) / revs.length) : 0;
+           return r;
+        });
+
+        grid.innerHTML = preppedRecipes.map(r => this.createRecipeCardHTML(r)).join('');
         const dragList = document.getElementById('plannerFavoritesList');
-        dragList.innerHTML = recipes.map(r => `
+        dragList.innerHTML = preppedRecipes.map(r => `
         <div class="mini-recipe-card" draggable="true" ondragstart="app.handleDragStart(event, '${r.id}', '${encodeURIComponent(r.name)}', '${encodeURIComponent(r.image_url)}')">
             <img src="${r.image_url || 'https://via.placeholder.com/40'}" class="mini-img">
             <span>${r.name}</span>
@@ -1234,23 +1445,32 @@ const app = {
       const trimmed = line.trim();
       if (!trimmed || (trimmed.startsWith('[') && trimmed.endsWith(']'))) return;
       
-      const match = trimmed.match(/^([\d.\/]+)\s*([a-zA-Z]+)?\s+(.*)$/);
-      
       let qty = 1;
       let unit = '';
-      let name = trimmed;
+      let name = '';
 
-      if (match) {
-        if (match[1].includes('/')) {
-            const [num, den] = match[1].split('/');
-            qty = (parseFloat(num) / parseFloat(den)) || 1;
-        } else {
-            qty = parseFloat(match[1]) || 1;
-        }
-        qty = +(qty * ratio).toFixed(2);
-        unit = match[2] ? match[2].trim() : '';
-        name = match[3].trim();
+      if (trimmed.startsWith('#RICH#')) {
+          const parts = trimmed.split(' | ');
+          qty = parseFloat(parts[1]) || 1;
+          unit = parts[2] || '';
+          name = parts[3] || '';
+      } else {
+          const match = trimmed.match(/^([\d.\/]+)\s*([a-zA-Z]+)?\s+(.*)$/);
+          if (match) {
+            if (match[1].includes('/')) {
+                const [num, den] = match[1].split('/');
+                qty = (parseFloat(num) / parseFloat(den)) || 1;
+            } else {
+                qty = parseFloat(match[1]) || 1;
+            }
+            unit = match[2] ? match[2].trim() : '';
+            name = match[3].trim();
+          } else {
+            name = trimmed;
+          }
       }
+
+      qty = +(qty * ratio).toFixed(2);
 
       let unitCost = 0;
       if (recipe.recipe_ingredients) {
@@ -1531,6 +1751,7 @@ const app = {
       document.getElementById('editId').value = recipeObj.id;
       document.getElementById('editImage').value = recipeObj.image_url || '';
       document.getElementById('editName').value = recipeObj.name;
+      document.getElementById('editSecondaryName').value = recipeObj.secondary_name || '';
       document.getElementById('editCategory').value = recipeObj.category;
       document.getElementById('editServings').value = recipeObj.servings || 1;
       document.getElementById('editPrepTime').value = recipeObj.prep_time || 0; 
@@ -1542,13 +1763,23 @@ const app = {
           const t = line.trim();
           if (!t) return;
           if (t.startsWith('[') && t.endsWith(']')) {
-            this.editIngredientsList.push({ type: 'divider', name: t.slice(1, -1) });
+            this.editIngredientsList.push({ type: 'divider', name: t.slice(1, -1), desc: '', alts: [] });
+          } else if (t.startsWith('#RICH#')) {
+            const parts = t.split(' | ');
+            this.editIngredientsList.push({
+               type: 'ingredient',
+               qty: parseFloat(parts[1]) || 1,
+               unit: parts[2] || '-',
+               name: parts[3] || '',
+               desc: parts[4] || '',
+               alts: JSON.parse(parts[5] || '[]')
+            });
           } else {
-            const match = t.match(/^([\d.]+)\s*([a-zA-Z]+)?\s+(.*)$/);
+            const match = t.match(/^([\d.\/]+)\s*([a-zA-Z]+)?\s+(.*)$/);
             if (match) {
-              this.editIngredientsList.push({ type: 'ingredient', qty: parseFloat(match[1]), unit: match[2] || '', name: match[3].trim() });
+              this.editIngredientsList.push({ type: 'ingredient', qty: parseFloat(match[1]), unit: match[2] || '', name: match[3].trim(), desc: '', alts: [] });
             } else {
-              this.editIngredientsList.push({ type: 'ingredient', qty: 1, unit: '', name: t });
+              this.editIngredientsList.push({ type: 'ingredient', qty: 1, unit: '', name: t, desc: '', alts: [] });
             }
           }
         });
@@ -1559,6 +1790,7 @@ const app = {
       document.getElementById('editId').value = '';
       document.getElementById('editImage').value = '';
       document.getElementById('editName').value = '';
+      document.getElementById('editSecondaryName').value = '';
       document.getElementById('editCategory').value = '';
       document.getElementById('editServings').value = 1;
       document.getElementById('editPrepTime').value = '0';
@@ -1573,15 +1805,26 @@ const app = {
 
   addEditorIngredient: function(type) {
     if (type === 'divider') {
-      this.editIngredientsList.push({ type: 'divider', name: '' });
+      this.editIngredientsList.push({ type: 'divider', name: '', desc: '', alts: [] });
     } else {
-      this.editIngredientsList.push({ type: 'ingredient', qty: 1, unit: '-', name: '' });
+      this.editIngredientsList.push({ type: 'ingredient', qty: 1, unit: '-', name: '', desc: '', alts: [] });
     }
     this.renderEditorIngredients();
   },
 
   removeEditorIngredient: function(index) {
     this.editIngredientsList.splice(index, 1);
+    this.renderEditorIngredients();
+  },
+
+  addEditorAlt: function(ingIndex) {
+    if(!this.editIngredientsList[ingIndex].alts) this.editIngredientsList[ingIndex].alts = [];
+    this.editIngredientsList[ingIndex].alts.push({ qty: 1, unit: '-', name: '', desc: '' });
+    this.renderEditorIngredients();
+  },
+
+  removeEditorAlt: function(ingIndex, altIndex) {
+    this.editIngredientsList[ingIndex].alts.splice(altIndex, 1);
     this.renderEditorIngredients();
   },
 
@@ -1594,37 +1837,68 @@ const app = {
     }
   },
 
+  updateEditorAltUnit: function(index, aIdx, value) {
+    this.editIngredientsList[index].alts[aIdx].name = value;
+    const found = this.ingredientsRegistry.find(i => i.name.toLowerCase() === value.trim().toLowerCase());
+    if (found) {
+      this.editIngredientsList[index].alts[aIdx].unit = found.unit;
+      this.renderEditorIngredients();
+    }
+  },
+
   renderEditorIngredients: function() {
     const container = document.getElementById('editorIngredientsContainer');
     container.innerHTML = '';
     
     this.editIngredientsList.forEach((item, index) => {
       const row = document.createElement('div');
-      row.style.display = 'flex';
-      row.style.gap = '15px';
-      row.style.alignItems = 'center';
       row.style.background = 'white';
-      row.style.padding = '8px';
+      row.style.padding = '15px';
       row.style.borderRadius = '20px';
       row.style.border = '2px solid var(--border-color)';
       row.style.boxShadow = '0 4px 0 0 var(--border-color)';
+      row.style.marginBottom = '15px';
 
       if (item.type === 'divider') {
         row.innerHTML = `
-          <input type="text" value="${item.name}" oninput="app.editIngredientsList[${index}].name = this.value" placeholder="Section Name (e.g. Marinade)" style="flex: 1; border-color: var(--pop-orange); color: var(--pop-orange); font-weight: 800;">
-          <button class="btn-danger" onclick="app.removeEditorIngredient(${index})">X</button>
+          <div style="display: flex; gap: 15px; align-items: center;">
+             <input type="text" value="${item.name}" oninput="app.editIngredientsList[${index}].name = this.value" placeholder="Section Name (e.g. Marinade)" style="flex: 1; border-color: var(--pop-orange); color: var(--pop-orange); font-weight: 800;">
+             <button class="btn-danger" onclick="app.removeEditorIngredient(${index})">X</button>
+          </div>
         `;
       } else {
-        row.innerHTML = `
-          <input type="number" value="${item.qty}" oninput="app.editIngredientsList[${index}].qty = parseFloat(this.value) || 0" style="width: 100px;" step="any">
-          <span style="width: 50px; text-align: center; font-weight: 800; color: var(--accent-cyan); font-size: 1.1rem;">${item.unit}</span>
-          
-          <div class="autocomplete-wrapper" style="flex: 1;">
-            <input type="text" value="${item.name}" onchange="app.updateEditorIngredientUnit(${index}, this.value)" oninput="app.editIngredientsList[${index}].name = this.value; app.filterAutocomplete(this, 'ingredient');" onfocus="app.filterAutocomplete(this, 'ingredient')" onblur="app.closeAutocomplete(this)" placeholder="Type ingredient..." autocomplete="off" style="width: 100%;">
-            <div class="autocomplete-dropdown"></div>
-          </div>
+        const altsHTML = (item.alts || []).map((alt, aIdx) => `
+          <div class="alt-item-row">
+            <span style="font-weight: 900; color: #d97706;">OR</span>
+            <input type="number" value="${alt.qty}" oninput="app.editIngredientsList[${index}].alts[${aIdx}].qty = parseFloat(this.value) || 0" style="width: 80px;" step="any">
+            <input type="text" value="${alt.unit}" oninput="app.editIngredientsList[${index}].alts[${aIdx}].unit = this.value" style="width: 80px;" placeholder="Unit">
+            
+            <div class="autocomplete-wrapper" style="flex: 1;">
+              <input type="text" value="${alt.name}" onchange="app.updateEditorAltUnit(${index}, ${aIdx}, this.value)" oninput="app.editIngredientsList[${index}].alts[${aIdx}].name = this.value; app.filterAutocomplete(this, 'ingredient');" onfocus="app.filterAutocomplete(this, 'ingredient')" onblur="app.closeAutocomplete(this)" placeholder="Substitute Name" autocomplete="off" style="width: 100%;">
+              <div class="autocomplete-dropdown"></div>
+            </div>
 
-          <button class="btn-danger" onclick="app.removeEditorIngredient(${index})">X</button>
+            <input type="text" value="${alt.desc}" oninput="app.editIngredientsList[${index}].alts[${aIdx}].desc = this.value" style="flex: 1;" placeholder="Descriptor (Optional)">
+            <button class="btn-danger" style="padding: 8px 12px; font-size: 0.8rem;" onclick="app.removeEditorAlt(${index}, ${aIdx})">X</button>
+          </div>
+        `).join('');
+
+        row.innerHTML = `
+          <div style="display: flex; gap: 15px; align-items: center;">
+            <input type="number" value="${item.qty}" oninput="app.editIngredientsList[${index}].qty = parseFloat(this.value) || 0" style="width: 80px;" step="any">
+            <input type="text" value="${item.unit}" oninput="app.editIngredientsList[${index}].unit = this.value" style="width: 80px;" placeholder="Unit">
+            
+            <div class="autocomplete-wrapper" style="flex: 2;">
+              <input type="text" value="${item.name}" onchange="app.updateEditorIngredientUnit(${index}, this.value)" oninput="app.editIngredientsList[${index}].name = this.value; app.filterAutocomplete(this, 'ingredient');" onfocus="app.filterAutocomplete(this, 'ingredient')" onblur="app.closeAutocomplete(this)" placeholder="Type ingredient..." autocomplete="off" style="width: 100%;">
+              <div class="autocomplete-dropdown"></div>
+            </div>
+
+            <input type="text" value="${item.desc || ''}" oninput="app.editIngredientsList[${index}].desc = this.value" placeholder="Descriptor (e.g. cold)" style="flex: 1;">
+            
+            <button class="btn-secondary" style="border-color: #f59e0b; color: #f59e0b;" onclick="app.addEditorAlt(${index})">+ Add Sub</button>
+            <button class="btn-danger" onclick="app.removeEditorIngredient(${index})">X</button>
+          </div>
+          ${altsHTML}
         `;
       }
       container.appendChild(row);
@@ -1661,11 +1935,15 @@ const app = {
 
     const raw_ingredients = this.editIngredientsList.map(item => {
       if (item.type === 'divider') return `[${item.name}]`;
-      return `${item.qty} ${item.unit !== '-' ? item.unit : ''} ${item.name}`.trim();
+      const descClean = (item.desc || '').replace(/\|/g, '').trim();
+      const nameClean = (item.name || '').replace(/\|/g, '').trim();
+      const altsClean = JSON.stringify(item.alts || []);
+      return `#RICH# | ${item.qty} | ${item.unit} | ${nameClean} | ${descClean} | ${altsClean}`;
     }).join('\n');
 
     const recipeData = {
       name: document.getElementById('editName').value || 'Untitled',
+      secondary_name: document.getElementById('editSecondaryName').value.trim() || null,
       image_url: document.getElementById('editImage').value.trim(),
       category: document.getElementById('editCategory').value,
       servings: parseFloat(document.getElementById('editServings').value) || 1,
