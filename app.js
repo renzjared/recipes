@@ -268,6 +268,7 @@ const app = {
     if(viewId === 'view-dashboard') document.getElementById('nav-browse')?.classList.add('active');
     if(viewId === 'view-ingredients') document.getElementById('nav-pantry')?.classList.add('active');
     if(viewId === 'view-shopping') document.getElementById('nav-cart')?.classList.add('active');
+    if(viewId === 'view-guide') document.getElementById('nav-guide')?.classList.add('active');
 
     if (viewId === 'view-home') this.renderHome();
     if (viewId === 'view-dashboard') {
@@ -279,6 +280,9 @@ const app = {
     if (viewId === 'view-shopping') {
       this.fetchShoppingList();
       this.renderShoppingList();
+    }
+    if (viewId === 'view-guide' && typeof GuideApp !== 'undefined') {
+      GuideApp.init();
     }
   },
 
@@ -462,7 +466,7 @@ const app = {
     }
   },
 
-fetchRecipes: async function() {
+  fetchRecipes: async function() {
     const { data, error } = await client.from('recipes').select(`
       *,
       recipe_ingredients ( qty, ingredients ( cost_per_unit, name ) ),
@@ -697,18 +701,15 @@ fetchRecipes: async function() {
     this.renderDashboard();
   },
 
-clearFilters: function() {
-    // Clear range inputs
+  clearFilters: function() {
     ['filterMinRating', 'filterMaxRating', 'filterMinCost', 'filterMaxCost', 'filterMinTime', 'filterMaxTime'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
     
-    // Reset dropdowns
     this.selectDropdown('browseSortCol', 'rating', 'Highest Rated');
     this.selectDropdown('browseSortDir', 'desc', 'Descending');
     
-    // Clear pantry filter and execute render
     this.pantryClearGlobal();
     this.applyPantryFilter();
   },
@@ -745,12 +746,17 @@ clearFilters: function() {
 
     const searchVal = this.currentSearch.toLowerCase();
     
-    const minRating = parseFloat(document.getElementById('filterMinRating')?.value) || 0;
-    const maxRating = parseFloat(document.getElementById('filterMaxRating')?.value) || 5;
-    const minCost = parseFloat(document.getElementById('filterMinCost')?.value) || 0;
-    const maxCost = parseFloat(document.getElementById('filterMaxCost')?.value) || 999999;
-    const minTime = parseFloat(document.getElementById('filterMinTime')?.value) || 0;
-    const maxTime = parseFloat(document.getElementById('filterMaxTime')?.value) || 999999;
+    const parseFilter = (id, fallback) => {
+      const val = document.getElementById(id)?.value;
+      return (val !== undefined && val !== '') ? parseFloat(val) : fallback;
+    };
+
+    const minRating = parseFilter('filterMinRating', 0);
+    const maxRating = parseFilter('filterMaxRating', 5);
+    const minCost = parseFilter('filterMinCost', 0);
+    const maxCost = parseFilter('filterMaxCost', 999999);
+    const minTime = parseFilter('filterMinTime', 0);
+    const maxTime = parseFilter('filterMaxTime', 999999);
 
     const filtered = this.recipes.filter(r => {
       const catString = r.category || 'Uncategorized';
@@ -766,11 +772,7 @@ clearFilters: function() {
       let matchPantry = true;
       if (this.pantrySelection.length > 0) {
         const pantryLower = this.pantrySelection.map(p => p.toLowerCase().trim());
-        
-        let reqIngs = r.recipe_ingredients 
-          ? r.recipe_ingredients.map(m => m.ingredients ? m.ingredients.name.toLowerCase().trim() : '').filter(Boolean) 
-          : [];
-          
+        let reqIngs = r.recipe_ingredients ? r.recipe_ingredients.map(m => m.ingredients ? m.ingredients.name.toLowerCase().trim() : '').filter(Boolean) : [];
         if (reqIngs.length === 0 && r.raw_ingredients) {
           reqIngs = r.raw_ingredients.split('\n')
             .filter(line => line.trim() && !line.trim().startsWith('['))
@@ -780,13 +782,10 @@ clearFilters: function() {
               return match ? match[1].toLowerCase().trim() : line.toLowerCase().trim();
             });
         }
-
         if (reqIngs.length > 0) {
-          matchPantry = reqIngs.every(req => 
-            pantryLower.some(pItem => req.includes(pItem) || pItem.includes(req))
-          );
+          matchPantry = reqIngs.every(req => pantryLower.some(pItem => req.includes(pItem) || pItem.includes(req)));
         } else {
-          matchPantry = false; 
+          matchPantry = false;
         }
       }
 
@@ -1144,11 +1143,10 @@ clearFilters: function() {
         }
         const lineCost = (scaledQty * unitCost).toFixed(2);
 
-let tooltipDOM = '';
+        let tooltipDOM = '';
         if (alts.length > 0) {
            hasAlternatives = true;
 
-           // 1. Tooltip HTML formatted as a mini table
            let tooltipTable = `<div style="text-align: left; padding: 5px;">
               <div style="color: var(--pop-orange); margin-bottom: 8px; font-weight: 900; border-bottom: 2px solid rgba(255,255,255,0.2); padding-bottom: 4px;">Substitutes:</div>
               <ul style="list-style: none; padding: 0; margin: 0;">
@@ -1165,7 +1163,6 @@ let tooltipDOM = '';
 
            tooltipDOM = `<div class="tooltip-content">${tooltipTable}</div>`;
 
-           // 2. Main Panel alternatives formatted matching the main ingredient list
            alternativesHTML += `
               <div style="margin-bottom: 15px;">
                 <div style="font-weight: 900; color: var(--text-dark); margin-bottom: 5px; font-size: 1.05rem;">${name}:</div>

@@ -16,11 +16,13 @@
   <header class="top-nav">
     <div style="display: flex; gap: 30px; align-items: center; flex-wrap: wrap;">
       <div class="logo" onclick="app.showView('view-home')">recipes</div>
+      
       <nav class="nav-links">
         <a id="nav-home" class="active" onclick="app.showView('view-home')">Home</a>
         <a id="nav-browse" onclick="app.showView('view-dashboard')">Browse</a>
         <a id="nav-pantry" onclick="app.showView('view-ingredients')">Pantry</a>
         <a id="nav-cart" onclick="app.showView('view-shopping')">List</a>
+        <a id="nav-guide" onclick="app.showView('view-guide')">Guide</a>
       </nav>
     </div>
 
@@ -31,6 +33,7 @@
         <button class="btn-secondary" style="padding: 8px 16px; font-size: 0.8rem;" onclick="app.logout()">Logout</button>
         <button class="btn-primary" onclick="app.openEditor()">+ New Recipe</button>
       </div>
+      
       <button id="loginBtn" class="btn-primary" style="background-color: #5865F2; box-shadow: 0 4px 0 0 #4752C4;" onclick="app.loginWithDiscord()">
         Login with Discord
       </button>
@@ -44,9 +47,7 @@
         <p style="font-size: 1.4rem;">Ang inyong smart at friendly na recipe manager at pantry tracker (more soon).</p>
         <button class="btn-primary" style="background: white; color: var(--pop-orange); box-shadow: 0 6px 0 0 #ffd6c2; font-size: 1.3rem; padding: 18px 40px; border-radius: 999px; margin-top: 10px;" onclick="app.showView('view-dashboard')">let me cook</button>
       </div>
-      <div class="gallery-wrapper">
-        <div class="gallery-track" id="homeGallery"></div>
-      </div>
+      <div class="gallery-wrapper"><div class="gallery-track" id="homeGallery"></div></div>
     </section>
 
     <section class="marketing-section">
@@ -136,7 +137,6 @@
             </div>
          </div>
          <input type="hidden" id="browseSortDir" value="desc">
-         
          <button class="btn-secondary" style="margin-left: auto;" onclick="app.clearFilters()">Clear Filters</button>
        </div>
     </div>
@@ -162,12 +162,12 @@
     <div class="recipe-grid" id="recipeGrid"></div>
   </main>
 
+  <!-- DETAIL VIEW -->
   <main id="view-detail" class="view">
     <div class="page-header" style="display: flex; justify-content: space-between;">
       <button class="btn-secondary" onclick="app.showView('view-dashboard')">← Back to Menu</button>
       <div style="display: flex; gap: 10px;">
         <button id="btnFavorite" class="btn-secondary" onclick="app.toggleFavorite()" style="border-color: #f59e0b; color: #f59e0b; box-shadow: 0 4px 0 0 #f59e0b;">⭐ Save</button>
-        <!-- NEW EXPORT BUTTON -->
         <button class="btn-secondary" onclick="RzRecipe.exportCurrent()" style="border-color: var(--pop-orange); color: var(--pop-orange); box-shadow: 0 4px 0 0 var(--pop-orange);">💾 Export</button>
         <button class="btn-secondary" onclick="app.openShareCard()" style="border-color: var(--accent-cyan); color: var(--accent-cyan); box-shadow: 0 4px 0 0 var(--accent-cyan);">🔗 Share</button>
         <button class="btn-secondary" onclick="app.addRecipeToShoppingList()" style="border-color: #10B981; color: #10B981; box-shadow: 0 4px 0 0 #10B981;">🛒 Add to List</button>
@@ -317,10 +317,8 @@
     <div class="page-header">
       <h1 id="editorTitle" class="page-title">New Recipe</h1>
       <div class="editor-actions" style="display: flex; gap: 10px;">
-        <!-- NEW IMPORT BUTTON & INPUT -->
         <input type="file" id="rzImportInput" accept=".rzrecipe" style="display: none;" onchange="RzRecipe.handleImport(event)">
         <button class="btn-secondary" onclick="document.getElementById('rzImportInput').click()" style="border-color: var(--hint-purple); color: var(--hint-purple); box-shadow: 0 4px 0 0 var(--hint-purple);">📂 Import</button>
-        
         <button class="btn-secondary" onclick="app.cancelEdit()">Cancel</button>
         <button class="btn-primary" onclick="app.saveRecipe()">Save Recipe</button>
       </div>
@@ -512,6 +510,24 @@
     </div>
   </main>
 
+<!-- NEW GUIDE VIEW WITH SIDEBAR -->
+  <main id="view-guide" class="view">
+    <div class="page-header"><h1 class="page-title">Documentation & Guide</h1></div>
+    <div class="guide-layout">
+      
+      <!-- Table of Contents Sidebar -->
+      <aside class="guide-sidebar" id="guideSidebar">
+        <!-- JS Populates Sidebar Buttons Here -->
+      </aside>
+
+      <!-- Main Content Area -->
+      <section class="guide-main-content" id="guideContent">
+        <!-- JS Populates Documentation Text Here -->
+      </section>
+      
+    </div>
+  </main>
+
   <div id="shareCardModal" class="modal-overlay hidden" onclick="if(event.target===this) this.classList.add('hidden')">
     <div class="share-card-container">
       <button class="close-modal-btn" onclick="document.getElementById('shareCardModal').classList.add('hidden')">×</button>
@@ -559,8 +575,8 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=6.0"></script>
-  <!-- NEW RZRECIPE IMPORTER FILE -->
+  <script src="app.js?v=6.1"></script>
   <script src="rzrecipe.js?v=1.0"></script>
+  <script src="guide.js?v=1.0"></script>
 </body>
 </html>
