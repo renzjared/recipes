@@ -561,3 +561,35 @@ input:disabled, select:disabled {
   .guide-layout { flex-direction: column; } 
   .guide-sidebar { flex: none; width: 100%; position: static; } 
 }
+
+/* =========================================
+   SVG ICON STYLING
+========================================= */
+svg.icon {
+  width: 1.2em;
+  height: 1.2em;
+  display: inline-block;
+  vertical-align: middle;
+  fill: currentColor;
+}
+
+button svg.icon {
+  margin-right: 6px;
+  margin-top: -2px;
+}
+
+.marketing-icon svg.icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-right: 0;
+}
+
+.toast-icon svg.icon {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+/* Pantry Tab specific overrides */
+.pantry-tab-content.hidden {
+  display: none !important;
+}

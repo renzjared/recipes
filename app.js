@@ -90,7 +90,7 @@ const app = {
     if (!container) return;
     const toast = document.createElement('div');
     toast.className = 'toast';
-    toast.innerHTML = `<div class="toast-icon">✓</div> <div>${msg}</div>`;
+    toast.innerHTML = `<div class="toast-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div> <div>${msg}</div>`;
     container.appendChild(toast);
     
     void toast.offsetWidth;
@@ -139,7 +139,6 @@ const app = {
   selectDropdown: function(id, value, displayLabel) {
     document.getElementById(id).value = value;
     document.getElementById(id + 'Display').textContent = displayLabel || value;
-    
     if(id === 'ingUnit') {
        this.calcMacrosUI(); 
     }
@@ -215,7 +214,6 @@ const app = {
          currentVals.push(name);
        }
        input.value = currentVals.join(', ') + (currentVals.length > 0 ? ', ' : '');
-       
        this.filterAutocomplete(input, 'category');
      } else {
        input.value = name;
@@ -231,6 +229,8 @@ const app = {
   updateUserUI: function(user) {
     this.currentUser = user;
     this.fetchShoppingList();
+    if (typeof InventoryApp !== 'undefined') InventoryApp.fetchUserInventory();
+
     const profileDiv = document.getElementById('userProfile');
     const loginBtn = document.getElementById('loginBtn');
 
@@ -257,6 +257,15 @@ const app = {
   logout: async function() {
     await client.auth.signOut();
     this.showView('view-home');
+  },
+
+  switchPantryTab: function(tabName, btnElement) {
+    const container = btnElement.closest('.profile-tabs').parentElement;
+    container.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    container.querySelectorAll('.pantry-tab-content').forEach(content => content.classList.add('hidden'));
+    
+    btnElement.classList.add('active');
+    document.getElementById(`pantry-tab-${tabName}`).classList.remove('hidden');
   },
 
   showView: function(viewId) {
@@ -594,13 +603,13 @@ const app = {
     };
 
     let cheapRecipes = [...this.recipes].filter(r => r.costPerServing > 0).sort((a, b) => a.costPerServing - b.costPerServing).slice(0, 3);
-    renderSection('Cheap Eats', '💸', cheapRecipes);
+    renderSection('Cheap Eats', '', cheapRecipes);
 
     let quickRecipes = [...this.recipes].filter(r => r.totalTime > 0).sort((a, b) => a.totalTime - b.totalTime).slice(0, 3);
-    renderSection('Quick Bites', '⚡', quickRecipes);
+    renderSection('Quick Bites', '', quickRecipes);
 
     let airfryerRecipes = this.recipes.filter(r => (r.category || '').toLowerCase().includes('air-fryer') || (r.category || '').toLowerCase().includes('airfryer')).slice(0, 3);
-    renderSection('Air-Fryer Goodness', '💨', airfryerRecipes);
+    renderSection('Air-Fryer', '', airfryerRecipes);
 
     const categoryCounts = {};
     this.recipes.forEach(r => {
@@ -613,12 +622,10 @@ const app = {
       });
     });
 
-    const sortedTags = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a]).slice(0, 2);
+    const sortedTags = Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a]).slice(0, 5);
     sortedTags.forEach(tag => {
       const tagRecipes = this.recipes.filter(r => (r.category || '').toLowerCase().includes(tag.toLowerCase())).slice(0, 3);
-      const icons = ['🔥', '✨', '😋', '🌟', '👨‍🍳', '🍲', '❤️'];
-      const randIcon = icons[Math.floor(Math.random() * icons.length)];
-      renderSection(`Top Rated: ${tag}`, randIcon, tagRecipes);
+      renderSection(`Top Rated: ${tag}`, '', tagRecipes);
     });
   },
 
@@ -943,7 +950,7 @@ const app = {
     const btn = document.getElementById('btnFavorite');
     if (!btn) return;
     if (!this.currentUser || !this.currentOpenRecipeId) {
-      btn.textContent = "⭐ Save";
+      btn.innerHTML = `<svg class="icon" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>Save`;
       btn.style.backgroundColor = "var(--bg-white)";
       return;
     }
@@ -955,10 +962,10 @@ const app = {
       .maybeSingle();
 
     if (data) {
-      btn.textContent = "🌟 Saved!";
+      btn.innerHTML = `<svg class="icon" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>Saved!`;
       btn.style.backgroundColor = "#fef3c7";
     } else {
-      btn.textContent = "⭐ Save";
+      btn.innerHTML = `<svg class="icon" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>Save`;
       btn.style.backgroundColor = "var(--bg-white)";
     }
   },
@@ -1280,7 +1287,7 @@ const app = {
       : "<p style='grid-column: 1/-1; text-align: center; font-weight: 800; color: #666;'>No recipes authored yet.</p>";
 
     const badges = [
-      { name: "First Steps", desc: "Write your first recipe.", icon: "🥚", unlocked: recipeCount >= 1 },
+      { name: "First Steps", desc: "Write your first recipe.", icon: "🌟", unlocked: recipeCount >= 1 },
       { name: "Master Chef", desc: "Author 5+ recipes.", icon: "👨‍🍳", unlocked: recipeCount >= 5 },
       { name: "Food Critic", desc: "Leave 3+ reviews.", icon: "📝", unlocked: reviewCount >= 3 },
       { name: "Pantry Lord", desc: "Reach Level 5.", icon: "👑", unlocked: level >= 5 }
