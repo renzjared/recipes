@@ -8,7 +8,7 @@ const GuideContent = [
     id: "basics",
     title: "1. Basics & Introduction",
     html: `
-      <h2>Welcome to Renz-Bot Recipes</h2>
+      <h2>Welcome to recipes.</h2>
       <p>This platform is designed to make recipe management, nutritional tracking, and grocery planning as friendly and automated as possible. By centralizing your ingredients into a smart database, the app automatically does the heavy lifting for you.</p>
       <ul>
         <li><strong>Browse & Discover:</strong> Search through a communal database of recipes.</li>
@@ -26,14 +26,14 @@ const GuideContent = [
       <p>The <strong>Home Page</strong> features dynamic rows that adapt to the community's data. It automatically finds the cheapest eats, the fastest meals, and clusters recipes based on the most popular tags (e.g., Air-Fryer, Desserts).</p>
       
       <h3>The Browse Page & Advanced Filters</h3>
-      <p>Click the <code>⚙️ Filters & Sort</code> button to open the advanced query panel. You can combine multiple filters simultaneously to find exactly what you need:</p>
+      <p>Click the <code>Filters & Sort</code> button to open the advanced query panel. You can combine multiple filters simultaneously to find exactly what you need:</p>
       <ul>
         <li><strong>Ranges:</strong> Set minimum and maximum limits for <code>Rating</code>, <code>Cost per Serving</code>, and <code>Total Time</code>.</li>
         <li><strong>Sorting:</strong> Reorder the grid by Highest Rated, Lowest Cost, Fastest Time, or Alphabetical. (Alphabetical is used as an automatic tie-breaker).</li>
         <li><strong>Smart Search:</strong> The text bar doesn't just search the title—it actively scans the recipe's native/secondary names, the author's name, and the category tags.</li>
       </ul>
 
-      <h3>🪄 What's in my Pantry?</h3>
+      <h3>What's in my Pantry?</h3>
       <p>This button opens the interactive ingredient toggle board. It utilizes a <strong>Strict Match</strong> algorithm:</p>
       <ul>
         <li>Select the ingredients you currently have in your physical kitchen.</li>
@@ -59,7 +59,7 @@ const GuideContent = [
       </ul>
 
       <h3>Account Features</h3>
-      <p>If you are logged in, you can click <strong>⭐ Save</strong> to add the recipe to your personal Favorites catalog (viewable in your Profile). You can also leave a 1-to-5 star rating and a written review at the bottom of the page, which affects the recipe's global ranking.</p>
+      <p>If you are logged in, you can click <strong>Save</strong> to add the recipe to your personal Favorites catalog (viewable in your Profile). You can also leave a 1-to-5 star rating and a written review at the bottom of the page, which affects the recipe's global ranking.</p>
     `
   },
   {
@@ -81,7 +81,7 @@ const GuideContent = [
     title: "5. Shopping List",
     html: `
       <h2>Smart Grocery Planning</h2>
-      <p>When viewing a recipe, clicking <strong>🛒 Add to List</strong> parses the required ingredients (scaled to your current serving size) and pushes them to your list.</p>
+      <p>When viewing a recipe, clicking <strong>Add to List</strong> parses the required ingredients (scaled to your current serving size) and pushes them to your list.</p>
       
       <ul>
         <li><strong>Auto-Deduplication:</strong> If you add two different recipes that both require "Garlic," the app will sum the quantities together into a single row.</li>
@@ -96,7 +96,7 @@ const GuideContent = [
     title: "6. The .rzrecipe Format & Sandbox",
     html: `
       <h2>Importing & Exporting</h2>
-      <p>Renz-Bot allows you to export any recipe into a custom <code>.rzrecipe</code> file. This is a strict JSON schema designed to safely package instructions, ingredient mappings, and substitutes. When you import a file, it loads directly into the Editor for your review.</p>
+      <p>You can export any recipe into a custom <code>.rzrecipe</code> file. This is a strict JSON schema designed to safely package instructions, ingredient mappings, and substitutes. When you import a file, it loads directly into the Editor for your review.</p>
 
       <h3>Schema Documentation</h3>
       <table class="docs-table">
